@@ -66,7 +66,7 @@ const createCloudinaryUploader = (folder) => {
 }
 
 export const uploadFieldImage = createCloudinaryUploader(
-    process.env.CLOUDINARY_FOLDER || 'kinal_sports/fields'
+    process.env.CLOUDINARY_FOLDER || 'sistemaBancario/fields'
 )
 
 export { cloudinary }
