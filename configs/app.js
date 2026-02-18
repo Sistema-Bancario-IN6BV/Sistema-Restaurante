@@ -10,7 +10,7 @@ import { helmetConfiguration } from './helmet-configuration.js';
 import { requestLimit } from '../middlewares/request-limit.js';
 import { errorHandler } from '../middlewares/handle-errors.js';
 
-const BASE_PATH = '/kinalSportsAdmin/v1';
+const BASE_PATH = '/Restaurante/v1';
 
 const middlewares = (app) => {
     app.use(express.urlencoded({ extended: false, limit: '10mb' }));
