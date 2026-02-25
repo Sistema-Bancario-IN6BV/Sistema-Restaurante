@@ -7,7 +7,8 @@ import {
 
 import {
     validateCreateOrderDetail,
-    validateOrderDetailId
+    validateOrderDetailId,
+    validateGetOrderDetails
 } from '../../middlewares/orderDetail-validators.js';
 
 const router = Router();
@@ -20,6 +21,7 @@ router.post(
 
 router.get(
     '/order/:orderId',
+    validateGetOrderDetails,
     getOrderDetails
 );
 
