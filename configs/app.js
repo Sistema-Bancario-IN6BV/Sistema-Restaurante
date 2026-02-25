@@ -9,6 +9,14 @@ import { corsOptions } from './cors-configuration.js';
 import { helmetConfiguration } from './helmet-configuration.js';
 import { requestLimit } from '../middlewares/request-limit.js';
 import { errorHandler } from '../middlewares/handle-errors.js';
+import eventsRoutes from '../src/events/event.routes.js';
+import menuItemRoutes from '../src/menuItems/menuItem.routes.js';
+import orderRoutes from '../src/orders/order.routes.js';
+import orderDetailsRoutes from '../src/orderDetails/orderDetail.routes.js';
+import reservationsRoutes from '../src/reservations/reservation.routes.js';
+import restaurantsRoutes from '../src/restaurants/restaurant.routes.js';
+import reviewRoutes from '../src/reviews/review.routes.js';
+import tablesRoutes from '../src/tables/table.routes.js';
 
 const BASE_PATH = '/Restaurante/v1';
 
@@ -22,6 +30,15 @@ const middlewares = (app) => {
 }
 
 const routes = (app) => {
+
+    app.use(`${BASE_PATH}/auth`, reviewRoutes);
+    app.use(`${BASE_PATH}/events`, eventsRoutes);
+    app.use(`${BASE_PATH}/menuItems`, menuItemRoutes);
+    app.use(`${BASE_PATH}/orders`, orderRoutes);
+    app.use(`${BASE_PATH}/orderDetails`, orderDetailsRoutes);
+    app.use(`${BASE_PATH}/reservations`, reservationsRoutes);
+    app.use(`${BASE_PATH}/restaurants`, restaurantsRoutes);
+    app.use(`${BASE_PATH}/tables`, tablesRoutes);
 
     app.get(`${BASE_PATH}/Health`, (request, response) => {
         response.status(200).json({
