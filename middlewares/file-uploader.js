@@ -69,4 +69,8 @@ export const uploadFieldImage = createCloudinaryUploader(
     process.env.CLOUDINARY_FOLDER || 'sistemaBancario/fields'
 )
 
+export const uploadMenuItemImage = createCloudinaryUploader(
+    process.env.CLOUDINARY_MENUITEM_FOLDER || 'sistemaBancario/menuItems'
+)
+
 export { cloudinary }
