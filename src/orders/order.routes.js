@@ -5,9 +5,9 @@ import {
     getOrderById,
     updateOrderStatus,
     changeOrderStatus
-} from './orders.controller.js';
+} from './order.controller.js';
 
-import { validateCreateOrder, validateOrderId, validateOrderStatus } from '../../middlewares/order-validators.js';
+import { validateCreateOrder, validateOrderId, validateOrderStatus, validateGetOrders } from '../../middlewares/order-validators.js';
 
 const router = Router();
 
@@ -19,6 +19,7 @@ router.post(
 
 router.get(
     '/get',
+    validateGetOrders,
     getOrders
 );
 
