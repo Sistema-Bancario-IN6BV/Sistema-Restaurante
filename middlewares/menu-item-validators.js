@@ -4,8 +4,8 @@ import { validateJWT } from './validate-JWT.js';
 import { requireRole } from './validate-role.js';
 
 export const validateCreateMenuItem = [
-    validateJWT,
-    requireRole('ADMIN_ROLE'),
+    //validateJWT,
+    //requireRole('ADMIN_ROLE'),
 
     body('restaurant')
         .notEmpty()

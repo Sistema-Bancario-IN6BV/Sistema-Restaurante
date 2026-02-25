@@ -17,7 +17,7 @@ import {
     validateUpdateMenuItemRequest,
     validateGetMenuItemById,
     validateMenuItemStatusChange
-} from '../../middlewares/menuItem-validators.js';
+} from '../../middlewares/menu-item-validators.js';
 
 const router = Router();
 

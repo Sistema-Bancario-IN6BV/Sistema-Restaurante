@@ -5,7 +5,7 @@ import {
     getOrderById,
     updateOrderStatus,
     changeOrderStatus
-} from './orders.controller.js';
+} from './order.controller.js';
 
 import { validateCreateOrder, validateOrderId, validateOrderStatus } from '../../middlewares/order-validators.js';
 
