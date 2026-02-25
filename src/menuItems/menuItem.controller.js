@@ -1,7 +1,7 @@
 'use strict';
 
 import MenuItem from './menuItem.model.js';
-import Restaurant from '../restaurant/restaurant.model.js';
+import Restaurant from '../restaurants/restaurant.model.js';
 
 export const createMenuItem = async (req, res) => {
     try {
