@@ -11,8 +11,9 @@ import {
     validateCreateReview, 
     validateReviewStatusChange, 
     validateGetReviewById, 
-    validateUpdateReviewRequest 
-} from '../../middlewares/review-validators.js';
+    validateUpdateReview,
+    validateGetReviews
+} from '../../middlewares/reviews-validators.js';
 
 const router = Router();
 
@@ -24,6 +25,7 @@ router.post(
 
 router.get(
     '/get',
+    validateGetReviews,
     getReviews
 );
 
@@ -31,7 +33,7 @@ router.get('/:id', validateGetReviewById, getReviewById);
 
 router.put(
     '/:id',
-    validateUpdateReviewRequest,
+    validateUpdateReview,
     updateReview
 );
 

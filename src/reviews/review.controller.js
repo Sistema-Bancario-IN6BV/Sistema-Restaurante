@@ -1,7 +1,7 @@
 'use strict';
 
 import Review from './review.model.js';
-import Restaurant from '../restaurant/restaurant.model.js';
+import Restaurant from '../restaurants/restaurant.model.js';
 
 export const createReview = async (req, res) => {
     try {
@@ -89,6 +89,34 @@ export const getReviews = async (req, res) => {
     }
 };
 
+export const getReviewById = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const review = await Review.findById(id)
+            .populate('user', 'name')
+            .populate('restaurant', 'name');
+
+        if (!review || !review.isActive) {
+            return res.status(404).json({
+                success: false,
+                message: 'Reseña no encontrada'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: review
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener la reseña',
+            error: error.message
+        });
+    }
+}
+
 export const updateReview = async (req, res) => {
     try {
         const { id } = req.params;
@@ -130,7 +158,7 @@ export const updateReview = async (req, res) => {
     }
 };
 
-export const deleteReview = async (req, res) => {
+export const changeReviewStatus = async (req, res) => {
     try {
         const { id } = req.params;
 

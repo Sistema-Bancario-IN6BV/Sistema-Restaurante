@@ -35,5 +35,6 @@ const tableSchema = mongoose.Schema(
 
 tableSchema.index({ restaurant: 1 });
 tableSchema.index({ isActive: 1 });
+tableSchema.index({ restaurant: 1, tableNumber: 1 }, { unique: true });
 
 export default mongoose.model('Table', tableSchema);

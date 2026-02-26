@@ -1,6 +1,6 @@
 import { parse } from 'dotenv';
 import Event from './event.model.js'
-import Restaurant from '../restaurant/restaurant.model.js';
+import Restaurant from '../restaurants/restaurant.model.js';
 
 export const createEvent = async (req, res) => {
     try {
