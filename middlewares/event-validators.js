@@ -2,11 +2,11 @@ import { body, param, query } from 'express-validator';
 import { checkValidators } from './checkValidators.js';
 import { validateJWT } from './validate-JWT.js';
 import { requireRole } from './validate-role.js';
-
+import { USER_ROLES } from './roles.js';
 // Validaciones para crear un evento
 export const validateCreateField = [
 	validateJWT,
-	requireRole('ADMIN_ROLE'),
+	requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
 
 	body('restaurant')
 		.notEmpty()
@@ -39,7 +39,7 @@ export const validateCreateField = [
 // Validaciones para actualizar un evento
 export const validateUpdateFieldRequest = [
 	validateJWT,
-	requireRole('ADMIN_ROLE'),
+	requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
 
 	param('id')
 		.isMongoId()
@@ -73,7 +73,7 @@ export const validateUpdateFieldRequest = [
 // Activar / Desactivar evento (solo ADMIN)
 export const validateFieldStatusChange = [
 	validateJWT,
-	requireRole('ADMIN_ROLE'),
+	requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
 	param('id')
 		.isMongoId()
 		.withMessage('ID debe ser un ObjectId válido de MongoDB'),

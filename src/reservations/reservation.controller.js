@@ -5,51 +5,29 @@ import Table from '../tables/table.model.js';
 // Crear reservación
 export const createReservation = async (req, res) => {
     try {
+        const data = req.body;
 
-        const { user, restaurant, table, reservationDate, startTime, endTime } = req.body;
+        const userId = req.user.id;
 
-        // Verificar conflicto de horario
-        const conflict = await Reservation.findOne({
-            table,
-            reservationDate,
-            status: { $in: ['PENDIENTE', 'CONFIRMADA'] },
-            startTime: { $lt: endTime },
-            endTime: { $gt: startTime }
+        const reservation = await Reservation.create({
+            ...data,
+            userId
         });
 
-        if (conflict) {
-            return res.status(400).json({
-                success: false,
-                message: 'La mesa ya está reservada en ese horario'
-            });
-        }
-
-        const reservation = new Reservation({
-            user,
-            restaurant,
-            table,
-            reservationDate,
-            startTime,
-            endTime
-        });
-
-        await reservation.save();
-
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
-            message: 'Reservación creada exitosamente',
-            data: reservation
+            message: 'Reservación creada',
+            reservation
         });
 
-    } catch (error) {
-        res.status(400).json({
+    } catch (err) {
+        return res.status(500).json({
             success: false,
             message: 'Error al crear reservación',
-            error: error.message
+            error: err.message
         });
     }
 };
-
 
 // Obtener reservaciones
 export const getReservations = async (req, res) => {

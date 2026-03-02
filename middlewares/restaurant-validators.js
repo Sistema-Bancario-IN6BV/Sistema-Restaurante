@@ -3,10 +3,11 @@ import { body, param, query } from 'express-validator';
 import { checkValidators } from './checkValidators.js';
 import { validateJWT } from './validate-JWT.js';
 import { requireRole } from './validate-role.js';
+import { USER_ROLES } from './roles.js';
 
 export const validateCreateField = [
 	validateJWT,
-	requireRole('ADMIN_ROLE'),
+	requireRole(USER_ROLES.PLATFORM_ADMIN),
 
 	body('name')
 		.trim()
@@ -49,7 +50,7 @@ export const validateCreateField = [
 
 export const validateUpdateFieldRequest = [
 	validateJWT,
-	requireRole('ADMIN_ROLE'),
+	requireRole(USER_ROLES.PLATFORM_ADMIN),
 
 	param('id')
 		.isMongoId()
@@ -94,7 +95,7 @@ export const validateUpdateFieldRequest = [
 
 export const validateFieldStatusChange = [
 	validateJWT,
-	requireRole('ADMIN_ROLE'),
+	requireRole(USER_ROLES.PLATFORM_ADMIN),
 	param('id')
 		.isMongoId()
 		.withMessage('ID debe ser un ObjectId válido de MongoDB'),

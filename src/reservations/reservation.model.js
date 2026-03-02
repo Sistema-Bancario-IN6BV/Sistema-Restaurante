@@ -4,10 +4,9 @@ import mongoose from "mongoose";
 
 const reservationSchema = mongoose.Schema(
     {
-        user: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User',
-            required: true
+        userId: {
+            type: String,
+            required: [true, 'El usuario es requerido']
         },
         restaurant: {
             type: mongoose.Schema.Types.ObjectId,

@@ -3,19 +3,29 @@ import { body, param, query } from 'express-validator';
 import { checkValidators } from './checkValidators.js';
 import { validateJWT } from './validate-JWT.js';
 import { requireRole } from './validate-role.js';
+import { USER_ROLES } from './roles.js';
 
 // Crear orden
 export const validateCreateOrder = [
-	validateJWT,
-	body('userId')
-		.notEmpty()
-		.withMessage('El usuario es requerido'),
-	body('restaurant')
-		.notEmpty()
-		.withMessage('El restaurante es requerido')
-		.isMongoId()
-		.withMessage('El restaurante debe ser un ObjectId válido'),
-	checkValidators,
+    validateJWT,
+
+    body('restaurant')
+        .notEmpty()
+        .withMessage('El restaurante es requerido')
+        .isMongoId()
+        .withMessage('El restaurante debe ser un ObjectId válido'),
+
+    body('total')
+        .optional()
+        .isFloat({ min: 0 })
+        .withMessage('El total no puede ser negativo'),
+
+    body('status')
+        .optional()
+        .isIn(['EN_PREPARACION', 'LISTO', 'ENTREGADO', 'CANCELADO'])
+        .withMessage('Estado no válido'),
+
+    checkValidators,
 ];
 
 // Validar ID de orden en params
@@ -30,7 +40,7 @@ export const validateOrderId = [
 // Validar cambio de estado
 export const validateOrderStatus = [
 	validateJWT,
-	requireRole('ADMIN_ROLE'),
+	requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
 	param('id')
 		.isMongoId()
 		.withMessage('ID debe ser un ObjectId válido de MongoDB'),

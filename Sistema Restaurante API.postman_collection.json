@@ -1,0 +1,1354 @@
+{
+  "info": {
+    "_postman_id": "50105bd6-c3a9-4bc0-a6f9-63634160201e",
+    "name": "Sistema Restaurante API",
+    "description": "Colección para probar todos los endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "48271620",
+    "_collection_link": "https://go.postman.co/collection/48271620-50105bd6-c3a9-4bc0-a6f9-63634160201e?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Restaurantes",
+      "item": [
+        {
+          "name": "Crear restaurante",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNXFSWEdiS1N2SERRIiwianRpIjoiNzUzNTNmM2UtZDk0Ny00YWY5LTgzMDQtODIyZWM2NmZlYmIwIiwiaWF0IjoxNzcyNDMyMjY0LCJyb2xlIjoiUExBVEZPUk1fQURNSU4iLCJleHAiOjE3NzI0MzQwNjQsImlzcyI6IkF1dGhTZXJ2aWNlUmVzdGF1cmFudGUiLCJhdWQiOiJBcGlSZXN0YXVyYW50ZSJ9.NaS0fwB-l5GNv6VYhSPdxElx-oF6JtDQzWnglsJ79SA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Restaurante Ejemplo",
+                  "type": "text"
+                },
+                {
+                  "key": "address",
+                  "value": "Calle Principal 123",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "555-1234",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "info@restaurante.com",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": "/C:/Users/stevp/OneDrive/Pictures/Screenshots/Screenshot 2026-01-06 125658.png"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/restaurants/create",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "restaurants",
+                "create"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar restaurantes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/restaurants/get",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "restaurants",
+                "get"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener restaurante por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/restaurants/69a4fd6a20889f149ba35c9f",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "restaurants",
+                "69a4fd6a20889f149ba35c9f"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar restaurante",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNXFSWEdiS1N2SERRIiwianRpIjoiNzUzNTNmM2UtZDk0Ny00YWY5LTgzMDQtODIyZWM2NmZlYmIwIiwiaWF0IjoxNzcyNDMyMjY0LCJyb2xlIjoiUExBVEZPUk1fQURNSU4iLCJleHAiOjE3NzI0MzQwNjQsImlzcyI6IkF1dGhTZXJ2aWNlUmVzdGF1cmFudGUiLCJhdWQiOiJBcGlSZXN0YXVyYW50ZSJ9.NaS0fwB-l5GNv6VYhSPdxElx-oF6JtDQzWnglsJ79SA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Restaurante Actualizado",
+                  "type": "text"
+                },
+                {
+                  "key": "address",
+                  "value": "Nueva Dirección 456",
+                  "type": "text"
+                },
+                {
+                  "key": "phone",
+                  "value": "555-5678",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "updated@restaurante.com",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "value": "",
+                  "type": "file"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/restaurants/69a4fd6a20889f149ba35c9f",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "restaurants",
+                "69a4fd6a20889f149ba35c9f"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Activar restaurante",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNXFSWEdiS1N2SERRIiwianRpIjoiNzUzNTNmM2UtZDk0Ny00YWY5LTgzMDQtODIyZWM2NmZlYmIwIiwiaWF0IjoxNzcyNDMyMjY0LCJyb2xlIjoiUExBVEZPUk1fQURNSU4iLCJleHAiOjE3NzI0MzQwNjQsImlzcyI6IkF1dGhTZXJ2aWNlUmVzdGF1cmFudGUiLCJhdWQiOiJBcGlSZXN0YXVyYW50ZSJ9.NaS0fwB-l5GNv6VYhSPdxElx-oF6JtDQzWnglsJ79SA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/restaurants/69a4fd6a20889f149ba35c9f/activate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "restaurants",
+                "69a4fd6a20889f149ba35c9f",
+                "activate"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Desactivar restaurante",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNXFSWEdiS1N2SERRIiwianRpIjoiNzUzNTNmM2UtZDk0Ny00YWY5LTgzMDQtODIyZWM2NmZlYmIwIiwiaWF0IjoxNzcyNDMyMjY0LCJyb2xlIjoiUExBVEZPUk1fQURNSU4iLCJleHAiOjE3NzI0MzQwNjQsImlzcyI6IkF1dGhTZXJ2aWNlUmVzdGF1cmFudGUiLCJhdWQiOiJBcGlSZXN0YXVyYW50ZSJ9.NaS0fwB-l5GNv6VYhSPdxElx-oF6JtDQzWnglsJ79SA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/restaurants/69a4fd6a20889f149ba35c9f/desactivate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "restaurants",
+                "69a4fd6a20889f149ba35c9f",
+                "desactivate"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Menú",
+      "item": [
+        {
+          "name": "Crear item de menú",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNXFSWEdiS1N2SERRIiwianRpIjoiNzUzNTNmM2UtZDk0Ny00YWY5LTgzMDQtODIyZWM2NmZlYmIwIiwiaWF0IjoxNzcyNDMyMjY0LCJyb2xlIjoiUExBVEZPUk1fQURNSU4iLCJleHAiOjE3NzI0MzQwNjQsImlzcyI6IkF1dGhTZXJ2aWNlUmVzdGF1cmFudGUiLCJhdWQiOiJBcGlSZXN0YXVyYW50ZSJ9.NaS0fwB-l5GNv6VYhSPdxElx-oF6JtDQzWnglsJ79SA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Hamburguesa Premium",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Hamburguesa hecha con carne orgánica",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "value": "12.99",
+                  "type": "text"
+                },
+                {
+                  "key": "restaurant",
+                  "value": "69a4fd6a20889f149ba35c9f",
+                  "type": "text"
+                },
+                {
+                  "key": "category",
+                  "value": "Platos Principales",
+                  "type": "text"
+                },
+                {
+                  "key": "photo",
+                  "type": "file",
+                  "value": ""
+                },
+                {
+                  "key": "type",
+                  "value": "PLATO_FUERTE",
+                  "type": "text",
+                  "uuid": "154adef3-d942-480b-b040-74b15e5ee476"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/menuItems/create",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "menuItems",
+                "create"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/menuItems/get",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "menuItems",
+                "get"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener item por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/menuItems/69a52df1ac9075b6a863a3fe",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "menuItems",
+                "69a52df1ac9075b6a863a3fe"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar item",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNXFSWEdiS1N2SERRIiwianRpIjoiNzUzNTNmM2UtZDk0Ny00YWY5LTgzMDQtODIyZWM2NmZlYmIwIiwiaWF0IjoxNzcyNDMyMjY0LCJyb2xlIjoiUExBVEZPUk1fQURNSU4iLCJleHAiOjE3NzI0MzQwNjQsImlzcyI6IkF1dGhTZXJ2aWNlUmVzdGF1cmFudGUiLCJhdWQiOiJBcGlSZXN0YXVyYW50ZSJ9.NaS0fwB-l5GNv6VYhSPdxElx-oF6JtDQzWnglsJ79SA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Hamburguesa Deluxe",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Hamburguesa con doble carne y queso",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "value": "15.99",
+                  "type": "text"
+                },
+                {
+                  "key": "category",
+                  "value": "Platos Principales",
+                  "type": "text"
+                },
+                {
+                  "key": "photo",
+                  "value": "",
+                  "type": "file"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/menuItems/69a52df1ac9075b6a863a3fe",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "menuItems",
+                "69a52df1ac9075b6a863a3fe"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Activar item",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNXFSWEdiS1N2SERRIiwianRpIjoiNzUzNTNmM2UtZDk0Ny00YWY5LTgzMDQtODIyZWM2NmZlYmIwIiwiaWF0IjoxNzcyNDMyMjY0LCJyb2xlIjoiUExBVEZPUk1fQURNSU4iLCJleHAiOjE3NzI0MzQwNjQsImlzcyI6IkF1dGhTZXJ2aWNlUmVzdGF1cmFudGUiLCJhdWQiOiJBcGlSZXN0YXVyYW50ZSJ9.NaS0fwB-l5GNv6VYhSPdxElx-oF6JtDQzWnglsJ79SA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/menuItems/69a52df1ac9075b6a863a3fe/activate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "menuItems",
+                "69a52df1ac9075b6a863a3fe",
+                "activate"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Desactivar item",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/menuItems/:id/deactivate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "menuItems",
+                ":id",
+                "deactivate"
+              ],
+              "variable": [
+                {
+                  "key": "id"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Crear orden",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNXFSWEdiS1N2SERRIiwianRpIjoiNzUzNTNmM2UtZDk0Ny00YWY5LTgzMDQtODIyZWM2NmZlYmIwIiwiaWF0IjoxNzcyNDMyMjY0LCJyb2xlIjoiUExBVEZPUk1fQURNSU4iLCJleHAiOjE3NzI0MzQwNjQsImlzcyI6IkF1dGhTZXJ2aWNlUmVzdGF1cmFudGUiLCJhdWQiOiJBcGlSZXN0YXVyYW50ZSJ9.NaS0fwB-l5GNv6VYhSPdxElx-oF6JtDQzWnglsJ79SA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"restaurant\": \"69a4fd6a20889f149ba35c9f\",\r\n  \"total\": 50,\r\n  \"status\": \"EN_PREPARACION\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/create",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "create"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar órdenes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders/get",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "get"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Orden por ID",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNXFSWEdiS1N2SERRIiwianRpIjoiNzUzNTNmM2UtZDk0Ny00YWY5LTgzMDQtODIyZWM2NmZlYmIwIiwiaWF0IjoxNzcyNDMyMjY0LCJyb2xlIjoiUExBVEZPUk1fQURNSU4iLCJleHAiOjE3NzI0MzQwNjQsImlzcyI6IkF1dGhTZXJ2aWNlUmVzdGF1cmFudGUiLCJhdWQiOiJBcGlSZXN0YXVyYW50ZSJ9.NaS0fwB-l5GNv6VYhSPdxElx-oF6JtDQzWnglsJ79SA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders/69a53086ac9075b6a863a40b",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "69a53086ac9075b6a863a40b"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cambiar estado",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "status",
+                  "value": "completed",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orders/:id/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                ":id",
+                "status"
+              ],
+              "variable": [
+                {
+                  "key": "id"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Activar orden",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders/:id/activate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                ":id",
+                "activate"
+              ],
+              "variable": [
+                {
+                  "key": "id"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Desactivar orden",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orders/:id/deactivate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                ":id",
+                "deactivate"
+              ],
+              "variable": [
+                {
+                  "key": "id"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "OrderDetails",
+      "item": [
+        {
+          "name": "Crear detalle",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNXFSWEdiS1N2SERRIiwianRpIjoiODA5ZGI1MWYtNzUxMi00MDBiLTg1NGEtMWQzNDY5YjcwOTlhIiwiaWF0IjoxNzcyNDI4Nzc1LCJyb2xlIjoiUExBVEZPUk1fQURNSU4iLCJleHAiOjE3NzI0MzA1NzUsImlzcyI6IkF1dGhTZXJ2aWNlUmVzdGF1cmFudGUiLCJhdWQiOiJBcGlSZXN0YXVyYW50ZSJ9.OQ6opyWTRHTqdUZoMMKFlwz6P0jFYPDgXre37IFtf6E",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"menuItem\": \"69a507e90691b78ec070170c\",\r\n  \"quantity\": 2,\r\n  \"price\": 12.99,\r\n  \"notes\": \"Sin picante\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/orderDetails/69a520dbfb9fb6d07dcdae41",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orderDetails",
+                "69a520dbfb9fb6d07dcdae41"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar por orden",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orderDetails/order/69a520dbfb9fb6d07dcdae41",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orderDetails",
+                "order",
+                "69a520dbfb9fb6d07dcdae41"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Desactivar detalle",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNXFSWEdiS1N2SERRIiwianRpIjoiMzM1YTJkYzgtMGVjZS00MTU1LWIxNDAtYWUzODc1YzQzMzk1IiwiaWF0IjoxNzcyNDM1MzgwLCJyb2xlIjoiUExBVEZPUk1fQURNSU4iLCJleHAiOjE3NzI0MzcxODAsImlzcyI6IkF1dGhTZXJ2aWNlUmVzdGF1cmFudGUiLCJhdWQiOiJBcGlSZXN0YXVyYW50ZSJ9.XvrbGBPVShV5sGMypKeJYcvjXiig91l1v5rJW6YxnDI",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/orderDetails/69a520dbfb9fb6d07dcdae41/deactivate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orderDetails",
+                "69a520dbfb9fb6d07dcdae41",
+                "deactivate"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Eventos",
+      "item": [
+        {
+          "name": "Crear evento",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNXFSWEdiS1N2SERRIiwianRpIjoiMzM1YTJkYzgtMGVjZS00MTU1LWIxNDAtYWUzODc1YzQzMzk1IiwiaWF0IjoxNzcyNDM1MzgwLCJyb2xlIjoiUExBVEZPUk1fQURNSU4iLCJleHAiOjE3NzI0MzcxODAsImlzcyI6IkF1dGhTZXJ2aWNlUmVzdGF1cmFudGUiLCJhdWQiOiJBcGlSZXN0YXVyYW50ZSJ9.XvrbGBPVShV5sGMypKeJYcvjXiig91l1v5rJW6YxnDI",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Noche de Música en Vivo",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Gran evento musical con artistas locales",
+                  "type": "text"
+                },
+                {
+                  "key": "eventDate",
+                  "value": "2026-03-15",
+                  "type": "text"
+                },
+                {
+                  "key": "time",
+                  "value": "19:00",
+                  "type": "text"
+                },
+                {
+                  "key": "restaurant",
+                  "value": "69a4fd6a20889f149ba35c9f",
+                  "type": "text"
+                },
+                {
+                  "key": "capacity",
+                  "value": "100",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": "/C:/Users/stevp/OneDrive/Pictures/Screenshots/Screenshot 2026-01-06 125658.png"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/events/create",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "create"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar eventos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/get",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "get"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Evento por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/69a5382a0daed114fae33061",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "69a5382a0daed114fae33061"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar evento",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNXFSWEdiS1N2SERRIiwianRpIjoiMzM1YTJkYzgtMGVjZS00MTU1LWIxNDAtYWUzODc1YzQzMzk1IiwiaWF0IjoxNzcyNDM1MzgwLCJyb2xlIjoiUExBVEZPUk1fQURNSU4iLCJleHAiOjE3NzI0MzcxODAsImlzcyI6IkF1dGhTZXJ2aWNlUmVzdGF1cmFudGUiLCJhdWQiOiJBcGlSZXN0YXVyYW50ZSJ9.XvrbGBPVShV5sGMypKeJYcvjXiig91l1v5rJW6YxnDI",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Noche de Tango y Jazz",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Evento musical actualizado",
+                  "type": "text"
+                },
+                {
+                  "key": "date",
+                  "value": "2026-03-20",
+                  "type": "text"
+                },
+                {
+                  "key": "time",
+                  "value": "20:00",
+                  "type": "text"
+                },
+                {
+                  "key": "capacity",
+                  "value": "150",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "value": "",
+                  "type": "file"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/events/69a5382a0daed114fae33061",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "69a5382a0daed114fae33061"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Activar evento",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNXFSWEdiS1N2SERRIiwianRpIjoiMzM1YTJkYzgtMGVjZS00MTU1LWIxNDAtYWUzODc1YzQzMzk1IiwiaWF0IjoxNzcyNDM1MzgwLCJyb2xlIjoiUExBVEZPUk1fQURNSU4iLCJleHAiOjE3NzI0MzcxODAsImlzcyI6IkF1dGhTZXJ2aWNlUmVzdGF1cmFudGUiLCJhdWQiOiJBcGlSZXN0YXVyYW50ZSJ9.XvrbGBPVShV5sGMypKeJYcvjXiig91l1v5rJW6YxnDI",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/69a5382a0daed114fae33061/activate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "69a5382a0daed114fae33061",
+                "activate"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Desactivar evento",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNXFSWEdiS1N2SERRIiwianRpIjoiMzM1YTJkYzgtMGVjZS00MTU1LWIxNDAtYWUzODc1YzQzMzk1IiwiaWF0IjoxNzcyNDM1MzgwLCJyb2xlIjoiUExBVEZPUk1fQURNSU4iLCJleHAiOjE3NzI0MzcxODAsImlzcyI6IkF1dGhTZXJ2aWNlUmVzdGF1cmFudGUiLCJhdWQiOiJBcGlSZXN0YXVyYW50ZSJ9.XvrbGBPVShV5sGMypKeJYcvjXiig91l1v5rJW6YxnDI",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/events/69a5382a0daed114fae33061/desactivate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "69a5382a0daed114fae33061",
+                "desactivate"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Reservaciones",
+      "item": [
+        {
+          "name": "Crear reservación",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNXFSWEdiS1N2SERRIiwianRpIjoiMDkwZjQ1MzktZTgxMi00ZjJiLThiMGItNDAxZDQzYjI4MWEwIiwiaWF0IjoxNzcyNDM1NjcxLCJyb2xlIjoiUExBVEZPUk1fQURNSU4iLCJleHAiOjE3NzI0Mzc0NzEsImlzcyI6IkF1dGhTZXJ2aWNlUmVzdGF1cmFudGUiLCJhdWQiOiJBcGlSZXN0YXVyYW50ZSJ9.EI_ZsEEE9yvB_O53EtK3viylp7hZfQ8aez2NsrXHSSs",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"restaurant\": \"65f0c1a2b3c4d5e6f7a8b9c0\",\r\n  \"table\": \"65f0c1a2b3c4d5e6f7a8b9c1\",\r\n  \"reservationDate\": \"2026-03-10\",\r\n  \"startTime\": \"2026-03-10T18:00:00.000Z\",\r\n  \"endTime\": \"2026-03-10T20:00:00.000Z\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reservations/create",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservations",
+                "create"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar reservaciones",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/get",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservations",
+                "get"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reservación por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/69a52b0eac9075b6a863a3f0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservations",
+                "69a52b0eac9075b6a863a3f0"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cambiar estado reservación",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "status",
+                  "value": "confirmed",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reservations/:id/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservations",
+                ":id",
+                "status"
+              ],
+              "variable": [
+                {
+                  "key": "id"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Activar reservación",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/69a52b0eac9075b6a863a3f0/activate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservations",
+                "69a52b0eac9075b6a863a3f0",
+                "activate"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Desactivar reservación",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations/69a52b0eac9075b6a863a3f0/deactivate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservations",
+                "69a52b0eac9075b6a863a3f0",
+                "deactivate"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Mesas",
+      "item": [
+        {
+          "name": "Crear mesa",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNXFSWEdiS1N2SERRIiwianRpIjoiYzExODExNmUtZTQ3ZS00OGQ3LTk2OGEtNzU5ODRkYzM5NTJmIiwiaWF0IjoxNzcyNDM1ODY4LCJyb2xlIjoiUExBVEZPUk1fQURNSU4iLCJleHAiOjE3NzI0Mzc2NjgsImlzcyI6IkF1dGhTZXJ2aWNlUmVzdGF1cmFudGUiLCJhdWQiOiJBcGlSZXN0YXVyYW50ZSJ9.shEFedX7wAZ4M3FOJBcHD__VA5s9vEtk1wG8zwqo3GA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"restaurant\": \"69a52b9eac9075b6a863a3f2\",\r\n  \"tableNumber\": 2,\r\n  \"capacity\": 4,\r\n  \"location\": \"Ventana\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tables/create",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tables",
+                "create"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar mesas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tables/get",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tables",
+                "get"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mesa por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tables/69a539da0daed114fae3307f",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tables",
+                "69a539da0daed114fae3307f"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar mesa",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNXFSWEdiS1N2SERRIiwianRpIjoiYzExODExNmUtZTQ3ZS00OGQ3LTk2OGEtNzU5ODRkYzM5NTJmIiwiaWF0IjoxNzcyNDM1ODY4LCJyb2xlIjoiUExBVEZPUk1fQURNSU4iLCJleHAiOjE3NzI0Mzc2NjgsImlzcyI6IkF1dGhTZXJ2aWNlUmVzdGF1cmFudGUiLCJhdWQiOiJBcGlSZXN0YXVyYW50ZSJ9.shEFedX7wAZ4M3FOJBcHD__VA5s9vEtk1wG8zwqo3GA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "tableNumber",
+                  "value": "5",
+                  "type": "text"
+                },
+                {
+                  "key": "capacity",
+                  "value": "6",
+                  "type": "text"
+                },
+                {
+                  "key": "location",
+                  "value": "Centro del comedor",
+                  "type": "text"
+                },
+                {
+                  "key": "type",
+                  "value": "indoor",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tables/69a539da0daed114fae3307f",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tables",
+                "69a539da0daed114fae3307f"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Activar mesa",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNXFSWEdiS1N2SERRIiwianRpIjoiYzExODExNmUtZTQ3ZS00OGQ3LTk2OGEtNzU5ODRkYzM5NTJmIiwiaWF0IjoxNzcyNDM1ODY4LCJyb2xlIjoiUExBVEZPUk1fQURNSU4iLCJleHAiOjE3NzI0Mzc2NjgsImlzcyI6IkF1dGhTZXJ2aWNlUmVzdGF1cmFudGUiLCJhdWQiOiJBcGlSZXN0YXVyYW50ZSJ9.shEFedX7wAZ4M3FOJBcHD__VA5s9vEtk1wG8zwqo3GA",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tables/69a539da0daed114fae3307f/activate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tables",
+                "69a539da0daed114fae3307f",
+                "activate"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Desactivar mesa",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/tables/:id/deactivate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tables",
+                ":id",
+                "deactivate"
+              ],
+              "variable": [
+                {
+                  "key": "id"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Reportes",
+      "item": [
+        {
+          "name": "Overview report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/overview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "overview"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "reviews",
+      "item": [
+        {
+          "name": "Crear Review",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "New Request",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "New Request",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "New Request",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "New Request",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "New Request",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3006/Restaurante/v1"
+    }
+  ]
+}

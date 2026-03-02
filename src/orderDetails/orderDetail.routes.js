@@ -14,9 +14,9 @@ import {
 const router = Router();
 
 router.post(
-    '/create',
-    validateCreateOrderDetail,
-    createOrderDetail
+  '/:orderId',
+  validateCreateOrderDetail,
+  createOrderDetail
 );
 
 router.get(

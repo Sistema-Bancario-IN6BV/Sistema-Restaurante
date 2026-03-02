@@ -5,11 +5,20 @@ import MenuItem from '../menuItems/menuItem.model.js';
 // Agregar detalle a una orden
 export const createOrderDetail = async (req, res) => {
     try {
+        const { orderId } = req.params;
+        const { menuItem, quantity } = req.body;
 
-        const { order, menuItem, quantity } = req.body;
+        // validar orden
+        const orderExists = await Order.findById(orderId);
+        if (!orderExists) {
+            return res.status(404).json({
+                success: false,
+                message: 'Orden no encontrada'
+            });
+        }
 
+        // validar platillo
         const item = await MenuItem.findById(menuItem);
-
         if (!item) {
             return res.status(404).json({
                 success: false,
@@ -20,7 +29,7 @@ export const createOrderDetail = async (req, res) => {
         const subtotal = item.price * quantity;
 
         const orderDetail = new OrderDetail({
-            order,
+            order: orderId,
             menuItem,
             quantity,
             price: item.price,
@@ -29,9 +38,9 @@ export const createOrderDetail = async (req, res) => {
 
         await orderDetail.save();
 
-        const orderData = await Order.findById(order);
-        orderData.total += subtotal;
-        await orderData.save();
+        // actualizar total
+        orderExists.total += subtotal;
+        await orderExists.save();
 
         res.status(201).json({
             success: true,
@@ -47,7 +56,6 @@ export const createOrderDetail = async (req, res) => {
         });
     }
 };
-
 
 // Obtener detalles de una orden
 export const getOrderDetails = async (req, res) => {

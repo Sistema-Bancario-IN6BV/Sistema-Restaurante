@@ -2,10 +2,11 @@ import { body, param, query } from 'express-validator';
 import { checkValidators } from './checkValidators.js';
 import { validateJWT } from './validate-JWT.js';
 import { requireRole } from './validate-role.js';
+import { USER_ROLES } from './roles.js';
 
 export const validateCreateTable = [
     validateJWT,
-    requireRole('ADMIN_ROLE'),
+    requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
 
     body('restaurant')
         .notEmpty()
@@ -36,7 +37,7 @@ export const validateCreateTable = [
 
 export const validateUpdateTableRequest = [
     validateJWT,
-    requireRole('ADMIN_ROLE'),
+    requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
 
     param('id')
         .isMongoId()
@@ -68,7 +69,7 @@ export const validateUpdateTableRequest = [
 
 export const validateTableStatusChange = [
     validateJWT,
-    requireRole('ADMIN_ROLE'),
+    requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
     param('id')
         .isMongoId()
         .withMessage('ID debe ser un ObjectId válido de MongoDB'),
