@@ -7,6 +7,7 @@ export const createReview = async (req, res) => {
     try {
         const { restaurant, rating, comment } = req.body;
 
+        // ✔ Validar restaurante correctamente
         const restaurantExists = await Restaurant.findOne({
             _id: restaurant,
             isActive: true
@@ -20,7 +21,8 @@ export const createReview = async (req, res) => {
         }
 
         const review = new Review({
-            user: req.user.uid,
+            ...data,
+            user: req.user.id,  
             restaurant,
             rating,
             comment

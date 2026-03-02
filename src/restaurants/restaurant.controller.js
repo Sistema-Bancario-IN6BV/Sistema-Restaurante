@@ -1,5 +1,5 @@
-import { parse } from 'dotenv';
 import Restaurant from './restaurant.model.js';
+import { cloudinary } from '../../middlewares/file-uploader.js'
 
 export const createRestaurant = async (req, res) => {
     try {

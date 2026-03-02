@@ -1,35 +1,52 @@
-import Order from './order.model.js';
-import OrderDetail from '../orderDetails/orderDetail.model.js';
+'use strict'
 
-// Crear orden
+import Order from './order.model.js'
+import OrderDetail from '../orderDetails/orderDetail.model.js'
+import Restaurant from '../restaurants/restaurant.model.js' // ✅ IMPORT NECESARIO
+
 export const createOrder = async (req, res) => {
     try {
+        const { restaurant, total, status } = req.body
 
-        const { userId, restaurant } = req.body;
+        if (!req.user || !req.user.id) {
+            return res.status(401).json({
+                success: false,
+                message: 'Usuario no autenticado'
+            })
+        }
+
+        const restaurantExists = await Restaurant.findById(restaurant)
+
+        if (!restaurantExists) {
+            return res.status(404).json({
+                success: false,
+                message: 'Restaurante no encontrado'
+            })
+        }
 
         const order = new Order({
-            userId,
             restaurant,
-            total: 0
-        });
+            userId: req.user.id,
+            total,
+            status
+        })
 
-        await order.save();
+        await order.save()
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
-            message: 'Orden creada exitosamente',
-            data: order
-        });
+            message: 'Orden creada',
+            order
+        })
 
     } catch (error) {
-        res.status(400).json({
+        return res.status(500).json({
             success: false,
             message: 'Error al crear orden',
             error: error.message
-        });
+        })
     }
-};
-
+}
 
 // Obtener órdenes
 export const getOrders = async (req, res) => {

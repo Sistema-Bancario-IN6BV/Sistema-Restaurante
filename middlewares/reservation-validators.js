@@ -2,47 +2,23 @@ import { body, param, query } from 'express-validator';
 import { checkValidators } from './checkValidators.js';
 import { validateJWT } from './validate-JWT.js';
 import { requireRole } from './validate-role.js';
+import { USER_ROLES } from './roles.js';
 
 export const validateCreateReservation = [
     validateJWT,
-
-    body('user')
-        .notEmpty()
-        .withMessage('El usuario es requerido')
-        .isMongoId()
-        .withMessage('El usuario debe ser un ObjectId válido'),
-
     body('restaurant')
-        .notEmpty()
-        .withMessage('El restaurante es requerido')
-        .isMongoId()
-        .withMessage('El restaurante debe ser un ObjectId válido'),
+        .notEmpty().withMessage('El restaurante es requerido')
+        .isMongoId().withMessage('Debe ser un ObjectId válido'),
 
     body('table')
-        .notEmpty()
-        .withMessage('La mesa es requerida')
-        .isMongoId()
-        .withMessage('La mesa debe ser un ObjectId válido'),
+        .notEmpty().withMessage('La mesa es requerida')
+        .isMongoId().withMessage('Debe ser un ObjectId válido'),
 
     body('reservationDate')
-        .notEmpty()
-        .withMessage('La fecha de reserva es requerida')
-        .isISO8601()
-        .withMessage('La fecha debe ser una fecha válida'),
+        .notEmpty().withMessage('La fecha es requerida')
+        .isISO8601().withMessage('Fecha inválida'),
 
-    body('startTime')
-        .notEmpty()
-        .withMessage('La hora de inicio es requerida')
-        .isISO8601()
-        .withMessage('La hora de inicio debe ser una fecha/hora válida'),
-
-    body('endTime')
-        .notEmpty()
-        .withMessage('La hora de fin es requerida')
-        .isISO8601()
-        .withMessage('La hora de fin debe ser una fecha/hora válida'),
-
-    checkValidators,
+    checkValidators
 ];
 
 export const validateReservationId = [
@@ -54,7 +30,7 @@ export const validateReservationId = [
 
 export const validateReservationStatusChange = [
     validateJWT,
-    requireRole('ADMIN_ROLE'),
+    requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
     param('id')
         .isMongoId()
         .withMessage('ID debe ser un ObjectId válido de MongoDB'),

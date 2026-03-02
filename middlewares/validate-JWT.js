@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { USER_ROLES } from './roles.js';
 
 export const validateJWT = (req, res, next) => {
     const jwtConfig = {
@@ -46,7 +47,7 @@ export const validateJWT = (req, res, next) => {
             id: decoded.sub, // userId del servicio de autenticación
             jti: decoded.jti, // ID único del token
             iat: decoded.iat, // Emitido en
-            role: decoded.role || 'USER_ROLE', // Rol del usuario (default: USER_ROLE)
+            role: decoded.role || USER_ROLES.CUSTOMER, // Rol del usuario (default: USER_ROLE)
         };
 
         next();
