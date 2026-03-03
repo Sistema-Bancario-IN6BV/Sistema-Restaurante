@@ -20,10 +20,12 @@ import tablesRoutes from '../src/tables/table.routes.js';
 import reportRoutes from '../src/reports/report.routes.js';
 
 // Importar rutas
+/*
 import orderRoutes from '../src/orders/order.routes.js';
 import orderDetailRoutes from '../src/orderDetails/orderDetail.routes.js';
 import menuItemRoutes from '../src/menuItems/menuItem.routes.js';
 import restaurantRoutes from '../src/restaurants/restaurant.routes.js';
+*/
 
 const BASE_PATH = '/Restaurante/v1';
 
@@ -57,10 +59,12 @@ const routes = (app) => {
     })
 
     // Rutas de la aplicación
+    /*
     app.use(`${BASE_PATH}/orders`, orderRoutes);
     app.use(`${BASE_PATH}/order-details`, orderDetailRoutes);
     app.use(`${BASE_PATH}/menu-items`, menuItemRoutes);
     app.use(`${BASE_PATH}/restaurants`, restaurantRoutes);
+    */
 
     app.use((req, res) => {
         res.status(404).json({
@@ -73,7 +77,7 @@ const routes = (app) => {
 export const initServer = async () => {
     const app = express();
     const PORT = process.env.PORT;
-    app.set('trus proxy', 1);
+    app.set('trust proxy', 1);
 
     try {
         await dbConnection();

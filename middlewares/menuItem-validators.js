@@ -5,13 +5,8 @@ import { requireRole } from './validate-role.js';
 import { USER_ROLES } from './roles.js';
 
 export const validateCreateMenuItem = [
-<<<<<<< HEAD:middlewares/menu-item-validators.js
-    //validateJWT,
-    //requireRole('ADMIN_ROLE'),
-=======
     validateJWT,
     requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
->>>>>>> origin/develop:middlewares/menuItem-validators.js
 
     body('restaurant')
         .notEmpty()

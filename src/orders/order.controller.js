@@ -1,14 +1,9 @@
-<<<<<<< HEAD
-import Order from './order.model.js';
-import OrderDetail from '../orderDetails/orderDetail.model.js';
-import MenuItem from '../menuItems/menuItem.model.js';
-=======
 'use strict'
 
 import Order from './order.model.js'
 import OrderDetail from '../orderDetails/orderDetail.model.js'
 import Restaurant from '../restaurants/restaurant.model.js' // ✅ IMPORT NECESARIO
->>>>>>> origin/develop
+import MenuItem from '../menuItems/menuItem.model.js';
 
 export const createOrder = async (req, res) => {
     try {
@@ -234,3 +229,4 @@ export const changeOrderStatus = async (req, res) => {
         });
     }
 };
+
