@@ -1,0 +1,386 @@
+{
+  "info": {
+    "_postman_id": "reports-api-collection",
+    "name": "Sistema Restaurante - Reports API",
+    "description": "Colección de endpoints para probar la API de Reportes",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "📊 Reportes JSON",
+      "item": [
+        {
+          "name": "1. Platos Más Vendidos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/Restaurante/v1/reports/top-selling-plates?limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "Restaurante",
+                "v1",
+                "reports",
+                "top-selling-plates"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "restaurantId",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Obtiene los platos más vendidos del sistema"
+          },
+          "response": []
+        },
+        {
+          "name": "2. Horas Pico",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/Restaurante/v1/reports/peak-hours",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "Restaurante",
+                "v1",
+                "reports",
+                "peak-hours"
+              ],
+              "query": [
+                {
+                  "key": "restaurantId",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Obtiene las horas pico de pedidos"
+          },
+          "response": []
+        },
+        {
+          "name": "3. Demanda por Restaurante",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/Restaurante/v1/reports/restaurant-demand?limit=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "Restaurante",
+                "v1",
+                "reports",
+                "restaurant-demand"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Obtiene la demanda de restaurantes (ingresos totales)"
+          },
+          "response": []
+        },
+        {
+          "name": "4. Estadísticas de Reservaciones",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/Restaurante/v1/reports/reservations-stats",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "Restaurante",
+                "v1",
+                "reports",
+                "reservations-stats"
+              ],
+              "query": [
+                {
+                  "key": "restaurantId",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Obtiene estadísticas de reservaciones"
+          },
+          "response": []
+        },
+        {
+          "name": "5. Desempeño del Restaurante",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/Restaurante/v1/reports/restaurant-performance/{{restaurantId}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "Restaurante",
+                "v1",
+                "reports",
+                "restaurant-performance",
+                "{{restaurantId}}"
+              ]
+            },
+            "description": "Obtiene estadísticas detalladas de un restaurante específico"
+          },
+          "response": []
+        },
+        {
+          "name": "6. Pedidos por Día",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/Restaurante/v1/reports/orders-by-day?days=30",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "Restaurante",
+                "v1",
+                "reports",
+                "orders-by-day"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "30"
+                },
+                {
+                  "key": "restaurantId",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Obtiene cantidad de pedidos por día"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📄 Reportes PDF",
+      "item": [
+        {
+          "name": "1. Reporte General PDF",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/Restaurante/v1/reports/general-report/pdf",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "Restaurante",
+                "v1",
+                "reports",
+                "general-report",
+                "pdf"
+              ]
+            },
+            "description": "Descarga un reporte general en PDF con datos del sistema"
+          },
+          "response": []
+        },
+        {
+          "name": "2. Reporte Restaurante PDF",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/Restaurante/v1/reports/restaurant-report/pdf/{{restaurantId}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "Restaurante",
+                "v1",
+                "reports",
+                "restaurant-report",
+                "pdf",
+                "{{restaurantId}}"
+              ]
+            },
+            "description": "Descarga un reporte en PDF de un restaurante específico"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📊 Reportes Excel",
+      "item": [
+        {
+          "name": "1. Reporte General Excel",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/Restaurante/v1/reports/general-report/excel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "Restaurante",
+                "v1",
+                "reports",
+                "general-report",
+                "excel"
+              ]
+            },
+            "description": "Descarga un reporte general en Excel con múltiples hojas"
+          },
+          "response": []
+        },
+        {
+          "name": "2. Reporte Restaurante Excel",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/Restaurante/v1/reports/restaurant-report/excel/{{restaurantId}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "Restaurante",
+                "v1",
+                "reports",
+                "restaurant-report",
+                "excel",
+                "{{restaurantId}}"
+              ]
+            },
+            "description": "Descarga un reporte en Excel de un restaurante específico"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🔧 Utilidades",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/Restaurante/v1/Health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "Restaurante",
+                "v1",
+                "Health"
+              ]
+            },
+            "description": "Verifica que el servidor esté activo y funcionando"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3006",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "tu-token-jwt-aqui",
+      "type": "string"
+    },
+    {
+      "key": "restaurantId",
+      "value": "id-del-restaurante",
+      "type": "string"
+    }
+  ]
+}
