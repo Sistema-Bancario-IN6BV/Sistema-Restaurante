@@ -1,38 +1,74 @@
-import { query } from 'express-validator';
+import { query, param } from 'express-validator';
 import { checkValidators } from './checkValidators.js';
-import { validateJWT } from './validate-JWT.js';
-import { requireRole } from './validate-role.js';
-import { USER_ROLES } from './roles.js';
 
-const baseReportQueryValidators = [
-    query('from')
-        .optional()
-        .isISO8601()
-        .withMessage('La fecha inicial debe estar en formato ISO8601'),
-    query('to')
-        .optional()
-        .isISO8601()
-        .withMessage('La fecha final debe estar en formato ISO8601'),
+// Validadores para endpoints de reportes
+export const validateTopSellingParams = [
     query('restaurantId')
         .optional()
         .isMongoId()
-        .withMessage('restaurantId debe ser un ObjectId válido')
-];
-
-export const validateGetReport = [
-    validateJWT,
-    requireRole(USER_ROLES.PLATFORM_ADMIN),
-    ...baseReportQueryValidators,
-    checkValidators
-];
-
-export const validateExportReport = [
-    validateJWT,
-    requireRole(USER_ROLES.PLATFORM_ADMIN),
-    ...baseReportQueryValidators,
-    query('format')
+        .withMessage('El ID del restaurante debe ser un ObjectId válido'),
+    query('limit')
         .optional()
-        .isIn(['pdf', 'excel'])
-        .withMessage('El formato debe ser pdf o excel'),
-    checkValidators
+        .isInt({ min: 1 })
+        .withMessage('El límite debe ser un entero mayor a 0'),
+    checkValidators,
+];
+
+export const validatePeakHoursParams = [
+    query('restaurantId')
+        .optional()
+        .isMongoId()
+        .withMessage('El ID del restaurante debe ser un ObjectId válido'),
+    checkValidators,
+];
+
+export const validateRestaurantDemandParams = [
+    query('limit')
+        .optional()
+        .isInt({ min: 1 })
+        .withMessage('El límite debe ser un entero mayor a 0'),
+    checkValidators,
+];
+
+export const validateReservationsStatsParams = [
+    query('restaurantId')
+        .optional()
+        .isMongoId()
+        .withMessage('El ID del restaurante debe ser un ObjectId válido'),
+    checkValidators,
+];
+
+export const validateRestaurantPerformanceParams = [
+    param('restaurantId')
+        .notEmpty()
+        .withMessage('El ID del restaurante es requerido')
+        .isMongoId()
+        .withMessage('El ID del restaurante debe ser un ObjectId válido'),
+    checkValidators,
+];
+
+export const validateOrdersByDayParams = [
+    query('restaurantId')
+        .optional()
+        .isMongoId()
+        .withMessage('El ID del restaurante debe ser un ObjectId válido'),
+    query('days')
+        .optional()
+        .isInt({ min: 1 })
+        .withMessage('Los días deben ser un entero mayor a 0'),
+    checkValidators,
+];
+
+export const validateGeneralReportParams = [
+    // No se requieren parámetros adicionales por ahora
+    checkValidators,
+];
+
+export const validateRestaurantReportParams = [
+    param('restaurantId')
+        .notEmpty()
+        .withMessage('El ID del restaurante es requerido')
+        .isMongoId()
+        .withMessage('El ID del restaurante debe ser un ObjectId válido'),
+    checkValidators,
 ];
