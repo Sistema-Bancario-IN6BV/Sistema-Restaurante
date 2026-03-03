@@ -16,8 +16,14 @@ import {
     validateCreateMenuItem,
     validateUpdateMenuItemRequest,
     validateGetMenuItemById,
+<<<<<<< HEAD
     validateMenuItemStatusChange
 } from '../../middlewares/menu-item-validators.js';
+=======
+    validateMenuItemStatusChange,
+    validateGetMenuItems
+} from '../../middlewares/menuItem-validators.js';
+>>>>>>> origin/develop
 
 const router = Router();
 
@@ -31,6 +37,7 @@ router.post(
 
 router.get(
     '/get',
+    validateGetMenuItems,
     getAllMenuItem
 );
 

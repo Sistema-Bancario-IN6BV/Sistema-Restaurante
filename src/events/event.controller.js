@@ -1,13 +1,11 @@
-import { parse } from 'dotenv';
 import Event from './event.model.js'
-import Restaurant from '../restaurant/restaurant.model.js';
+import Restaurant from '../restaurants/restaurant.model.js';
 
 export const createEvent = async (req, res) => {
     try {
 
         const eventData = req.body;
 
-        // 🔥 Validar restaurante (llave foránea)
         const restaurantExists = await Restaurant.findById(eventData.restaurant);
 
         if (!restaurantExists) {
@@ -42,21 +40,22 @@ export const createEvent = async (req, res) => {
 export const getEvents = async (req, res) => {
     try {
 
-        const { page = 1, limit = 10, isActive = true } = req.query;
-
-        const filter = { isActive };
+        const { page = 1, limit = 10, isActive = 'true' } = req.query;
 
         const options = {
             page: parseInt(page),
             limit: parseInt(limit),
             sort: { createdAt: -1 }
         }
+        const pageNumber = parseInt(page, 10);
+        const limitNumber = parseInt(limit, 10);
+        const filter = { isActive: isActive === 'true' };
 
         const events = await Event.find(filter)
             .populate('restaurant')
-            .limit(limit * 1)
-            .skip((page - 1) * limit)
-            .sort(options.sort);
+            .limit(limitNumber)
+            .skip((pageNumber - 1) * limitNumber)
+            .sort({ createdAt: -1 });
 
         const total = await Event.countDocuments(filter);
 
@@ -158,7 +157,7 @@ export const changeEventStatus = async (req, res) => {
         const isActive = req.url.includes('/activate');
         const action = isActive ? 'activado' : 'desactivado';
 
-        const event = await event.findByIdAndUpdate(
+        const event = await Event.findByIdAndUpdate(
             id, 
             { isActive },
             { new: true}
@@ -172,8 +171,8 @@ export const changeEventStatus = async (req, res) => {
         }
 
         res.status(200).json({
-            succes: true,
-            message: `Restaurante ${action} exitosamente`,
+            success: true,
+            message: `Evento ${action} exitosamente`,
             data: event
         })
     } catch (error) {

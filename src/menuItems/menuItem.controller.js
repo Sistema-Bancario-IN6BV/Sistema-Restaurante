@@ -48,7 +48,7 @@ export const getAllMenuItem = async (req, res) => {
         const pageNumber = parseInt(page);
         const limitNumber = parseInt(limit);
 
-        const filter = {};
+        const filter = {isActive: true};
 
         if (restaurant) {
             filter.restaurant = restaurant;

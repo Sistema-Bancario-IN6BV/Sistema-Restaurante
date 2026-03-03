@@ -2,6 +2,7 @@ import { body, param, query } from 'express-validator';
 import { checkValidators } from './checkValidators.js';
 import { validateJWT } from './validate-JWT.js';
 import { requireRole } from './validate-role.js';
+import { USER_ROLES } from './roles.js';
 
 // Crear reseña
 export const validateCreateReview = [
@@ -27,9 +28,6 @@ export const validateCreateReview = [
 // Actualizar reseña
 export const validateUpdateReview = [
     validateJWT,
-    param('id')
-        .isMongoId()
-        .withMessage('ID debe ser un ObjectId válido de MongoDB'),
     body('rating')
         .optional()
         .isInt({ min: 1, max: 5 })
@@ -45,7 +43,7 @@ export const validateUpdateReview = [
 // Activar / Desactivar reseña (solo ADMIN)
 export const validateReviewStatusChange = [
     validateJWT,
-    requireRole('ADMIN_ROLE'),
+    requireRole(USER_ROLES.PLATFORM_ADMIN),
     param('id')
         .isMongoId()
         .withMessage('ID debe ser un ObjectId válido de MongoDB'),

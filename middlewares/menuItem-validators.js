@@ -2,10 +2,16 @@ import { body, param, query } from 'express-validator';
 import { checkValidators } from './checkValidators.js';
 import { validateJWT } from './validate-JWT.js';
 import { requireRole } from './validate-role.js';
+import { USER_ROLES } from './roles.js';
 
 export const validateCreateMenuItem = [
+<<<<<<< HEAD:middlewares/menu-item-validators.js
     //validateJWT,
     //requireRole('ADMIN_ROLE'),
+=======
+    validateJWT,
+    requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
+>>>>>>> origin/develop:middlewares/menuItem-validators.js
 
     body('restaurant')
         .notEmpty()
@@ -43,7 +49,7 @@ export const validateCreateMenuItem = [
 
 export const validateUpdateMenuItemRequest = [
     validateJWT,
-    requireRole('ADMIN_ROLE'),
+    requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
 
     param('id')
         .isMongoId()
@@ -81,7 +87,7 @@ export const validateUpdateMenuItemRequest = [
 
 export const validateMenuItemStatusChange = [
     validateJWT,
-    requireRole('ADMIN_ROLE'),
+    requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
 
     param('id')
         .isMongoId()

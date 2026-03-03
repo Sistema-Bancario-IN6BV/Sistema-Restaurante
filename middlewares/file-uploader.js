@@ -70,7 +70,14 @@ export const uploadFieldImage = createCloudinaryUploader(
 )
 
 export const uploadMenuItemImage = createCloudinaryUploader(
+<<<<<<< HEAD
     process.env.CLOUDINARY_FOLDER || 'sistemaRestaurante/menuItems'
 )
 
 export { cloudinary }
+=======
+    process.env.CLOUDINARY_MENUITEM_FOLDER || 'sistemaBancario/menuItems'
+)
+
+export { cloudinary }
+>>>>>>> origin/develop
