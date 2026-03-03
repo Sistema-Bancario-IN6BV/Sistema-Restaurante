@@ -72,3 +72,24 @@ export const validateRestaurantReportParams = [
         .withMessage('El ID del restaurante debe ser un ObjectId válido'),
     checkValidators,
 ];
+
+export const validateGetReport = [
+    // Allow optional restaurantId for scoped reports
+    query('restaurantId')
+        .optional()
+        .isMongoId()
+        .withMessage('El ID del restaurante debe ser un ObjectId válido'),
+    checkValidators,
+];
+
+export const validateExportReport = [
+    query('restaurantId')
+        .optional()
+        .isMongoId()
+        .withMessage('El ID del restaurante debe ser un ObjectId válido'),
+    query('format')
+        .optional()
+        .isIn(['pdf', 'excel'])
+        .withMessage('El formato debe ser pdf o excel'),
+    checkValidators,
+];
