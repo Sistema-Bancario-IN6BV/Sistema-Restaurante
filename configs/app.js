@@ -9,6 +9,7 @@ import { corsOptions } from './cors-configuration.js';
 import { helmetConfiguration } from './helmet-configuration.js';
 import { requestLimit } from '../middlewares/request-limit.js';
 import { errorHandler } from '../middlewares/handle-errors.js';
+import { setupSwagger } from './swagger.js';
 import eventsRoutes from '../src/events/event.routes.js';
 import menuItemRoutes from '../src/menuItems/menuItem.routes.js';
 import orderRoutes from '../src/orders/order.routes.js';
@@ -18,6 +19,14 @@ import restaurantsRoutes from '../src/restaurants/restaurant.routes.js';
 import reviewRoutes from '../src/reviews/review.routes.js';
 import tablesRoutes from '../src/tables/table.routes.js';
 import reportRoutes from '../src/reports/report.routes.js';
+
+// Importar rutas
+/*
+import orderRoutes from '../src/orders/order.routes.js';
+import orderDetailRoutes from '../src/orderDetails/orderDetail.routes.js';
+import menuItemRoutes from '../src/menuItems/menuItem.routes.js';
+import restaurantRoutes from '../src/restaurants/restaurant.routes.js';
+*/
 
 const BASE_PATH = '/Restaurante/v1';
 
@@ -32,6 +41,19 @@ const middlewares = (app) => {
 
 const routes = (app) => {
 
+    app.get(`${BASE_PATH}`, (_req, res) => {
+        res.status(200).json({
+            success: true,
+            message: 'Sistema Restaurante API',
+            docs: `${BASE_PATH}/docs`,
+            health: `${BASE_PATH}/health`
+        })
+    })
+
+    app.get(`${BASE_PATH}/swagger`, (_req, res) => {
+        res.redirect(`${BASE_PATH}/docs`)
+    })
+
     app.use(`${BASE_PATH}/reviews`, reviewRoutes);
     app.use(`${BASE_PATH}/events`, eventsRoutes);
     app.use(`${BASE_PATH}/menuItems`, menuItemRoutes);
@@ -42,6 +64,8 @@ const routes = (app) => {
     app.use(`${BASE_PATH}/tables`, tablesRoutes);
     app.use(`${BASE_PATH}/reports`, reportRoutes);
 
+    setupSwagger(app, BASE_PATH);
+
     app.get(`${BASE_PATH}/Health`, (request, response) => {
         response.status(200).json({
             status: 'Healthy',
@@ -49,6 +73,14 @@ const routes = (app) => {
             service: 'Restaurant Admin Server'
         })
     })
+
+    // Rutas de la aplicación
+    /*
+    app.use(`${BASE_PATH}/orders`, orderRoutes);
+    app.use(`${BASE_PATH}/order-details`, orderDetailRoutes);
+    app.use(`${BASE_PATH}/menu-items`, menuItemRoutes);
+    app.use(`${BASE_PATH}/restaurants`, restaurantRoutes);
+    */
 
     app.use((req, res) => {
         res.status(404).json({
@@ -61,7 +93,7 @@ const routes = (app) => {
 export const initServer = async () => {
     const app = express();
     const PORT = process.env.PORT;
-    app.set('trus proxy', 1);
+    app.set('trust proxy', 1);
 
     try {
         await dbConnection();
@@ -73,6 +105,8 @@ export const initServer = async () => {
         app.listen(PORT, () => {
             console.log(`KinalSports Admin server running on port ${PORT}`);
             console.log(`Health check: http://localhost:${PORT}${BASE_PATH}/health`);
+            console.log(`Swagger UI: http://localhost:${PORT}${BASE_PATH}/docs`);
+            console.log(`Swagger JSON: http://localhost:${PORT}${BASE_PATH}/docs.json`);
         })
     } catch (error) {
         console.error(`Error starting Admin Server: ${error.message}`);

@@ -3,6 +3,7 @@
 import Order from './order.model.js'
 import OrderDetail from '../orderDetails/orderDetail.model.js'
 import Restaurant from '../restaurants/restaurant.model.js' // ✅ IMPORT NECESARIO
+import MenuItem from '../menuItems/menuItem.model.js';
 
 export const createOrder = async (req, res) => {
     try {
@@ -131,22 +132,54 @@ export const updateOrderStatus = async (req, res) => {
         const { id } = req.params;
         const { status } = req.body;
 
-        const order = await Order.findByIdAndUpdate(
-            id,
-            { status },
-            { new: true, runValidators: true }
-        );
-
-        if (!order) {
+        // Obtener la orden actual
+        const currentOrder = await Order.findById(id);
+        
+        if (!currentOrder) {
             return res.status(404).json({
                 success: false,
                 message: 'Orden no encontrada'
             });
         }
 
+        // Si el nuevo estado es ENTREGADO y antes no lo era
+        if (status === 'ENTREGADO' && currentOrder.status !== 'ENTREGADO') {
+            // Obtener detalles del pedido
+            const orderDetails = await OrderDetail.find({
+                order: id,
+                isActive: true
+            }).populate('menuItem');
+
+            // Verificar stock disponible
+            for (const detail of orderDetails) {
+                if (detail.menuItem.stock < detail.quantity) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Stock insuficiente para ${detail.menuItem.name}. Disponible: ${detail.menuItem.stock}, Requerido: ${detail.quantity}`
+                    });
+                }
+            }
+
+            // Si hay stock suficiente, restar
+            for (const detail of orderDetails) {
+                await MenuItem.findByIdAndUpdate(
+                    detail.menuItem._id,
+                    { $inc: { stock: -detail.quantity } },
+                    { new: true, runValidators: true }
+                );
+            }
+        }
+
+        // Actualizar el estado de la orden
+        const order = await Order.findByIdAndUpdate(
+            id,
+            { status },
+            { new: true, runValidators: true }
+        );
+
         res.status(200).json({
             success: true,
-            message: 'Estado actualizado',
+            message: status === 'ENTREGADO' ? 'Estado actualizado y stock ajustado' : 'Estado actualizado',
             data: order
         });
 
@@ -196,3 +229,4 @@ export const changeOrderStatus = async (req, res) => {
         });
     }
 };
+

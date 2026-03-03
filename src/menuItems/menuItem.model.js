@@ -25,6 +25,11 @@ const menuItemSchema = mongoose.Schema(
         required: [true, 'El precio es requerido'],
         min: [0, 'El precio debe ser mayor o igual a 0']
     },
+    stock: {
+        type: Number,
+        default: 0,
+        min: [0, 'El stock no puede ser negativo']
+    },
     type: {
         type: String,
         required: [true, 'El tipo es requerido'],
