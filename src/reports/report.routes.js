@@ -11,6 +11,9 @@ import {
     restaurantReportPDF,
     generalReportExcel,
     restaurantReportExcel,
+    getOverviewReport,
+    getRestaurantPerformanceReport,
+    exportRestaurantPerformanceReport,
 } from './report.controller.js';
 import {
     validateTopSellingParams,
@@ -21,6 +24,8 @@ import {
     validateOrdersByDayParams,
     validateRestaurantReportParams,
     validateGeneralReportParams,
+    validateGetReport,
+    validateExportReport,
 } from '../../middlewares/report-validators.js';
 
 const router = Router();
