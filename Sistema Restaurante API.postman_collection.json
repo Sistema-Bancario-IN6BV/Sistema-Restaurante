@@ -1,11 +1,11 @@
 {
   "info": {
-    "_postman_id": "50105bd6-c3a9-4bc0-a6f9-63634160201e",
+    "_postman_id": "9fa8494c-955b-43a3-95ad-4d711dc7b756",
     "name": "Sistema Restaurante API",
     "description": "Colección para probar todos los endpoints",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "48271620",
-    "_collection_link": "https://go.postman.co/collection/48271620-50105bd6-c3a9-4bc0-a6f9-63634160201e?source=collection_link"
+    "_exporter_id": "49132780",
+    "_collection_link": "https://go.postman.co/collection/49132780-9fa8494c-955b-43a3-95ad-4d711dc7b756?source=collection_link"
   },
   "item": [
     {
@@ -1295,50 +1295,85 @@
       "name": "reviews",
       "item": [
         {
-          "name": "Crear Review",
+          "name": "Crear review",
           "request": {
             "method": "GET",
-            "header": []
+            "header": [],
+            "url": {
+              "raw": ""
+            }
           },
           "response": []
         },
         {
-          "name": "New Request",
+          "name": "Listar reviews",
           "request": {
             "method": "GET",
-            "header": []
+            "header": [],
+            "url": {
+              "raw": ""
+            }
           },
           "response": []
         },
         {
-          "name": "New Request",
+          "name": "Review por ID",
           "request": {
             "method": "GET",
-            "header": []
+            "header": [],
+            "url": {
+              "raw": "http://localhost:3006/Restaurante/v1/reviews/:id",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "3006",
+              "path": [
+                "Restaurante",
+                "v1",
+                "reviews",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": ""
+                }
+              ]
+            }
           },
           "response": []
         },
         {
-          "name": "New Request",
+          "name": "Actualizar review",
           "request": {
             "method": "GET",
-            "header": []
+            "header": [],
+            "url": {
+              "raw": ""
+            }
           },
           "response": []
         },
         {
-          "name": "New Request",
+          "name": "Activar review",
           "request": {
             "method": "GET",
-            "header": []
+            "header": [],
+            "url": {
+              "raw": ""
+            }
           },
           "response": []
         },
         {
-          "name": "New Request",
+          "name": "Desactivar review",
           "request": {
             "method": "GET",
-            "header": []
+            "header": [],
+            "url": {
+              "raw": ""
+            }
           },
           "response": []
         }
