@@ -2,16 +2,18 @@
 
 import Order from './order.model.js'
 import OrderDetail from '../orderDetails/orderDetail.model.js'
-import Restaurant from '../restaurants/restaurant.model.js' // ✅ IMPORT NECESARIO
+import Restaurant from '../restaurants/restaurant.model.js'
+import MenuItem from '../menuItems/menuItem.model.js';
 
 export const createOrder = async (req, res) => {
     try {
-        const { restaurant, total, status } = req.body
 
-        if (!req.user || !req.user.id) {
-            return res.status(401).json({
+        const { restaurant, deliveryType, items } = req.body
+
+        if (!items || items.length === 0) {
+            return res.status(400).json({
                 success: false,
-                message: 'Usuario no autenticado'
+                message: 'La orden debe tener al menos un platillo'
             })
         }
 
@@ -24,30 +26,64 @@ export const createOrder = async (req, res) => {
             })
         }
 
+        let total = 0
+
         const order = new Order({
             restaurant,
             userId: req.user.id,
-            total,
-            status
+            deliveryType,
+            total: 0
         })
 
         await order.save()
 
+        const details = []
+
+        for (const item of items) {
+
+            const menuItem = await MenuItem.findById(item.menuItem)
+
+            if (!menuItem || !menuItem.isActive) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Platillo no disponible`
+                })
+            }
+
+            const subtotal = menuItem.price * item.quantity
+            total += subtotal
+
+            const detail = new OrderDetail({
+                order: order._id,
+                menuItem: menuItem._id,
+                quantity: item.quantity,
+                price: menuItem.price,
+                subtotal
+            })
+
+            await detail.save()
+
+            details.push(detail)
+        }
+
+        order.total = total
+        await order.save()
+
         return res.status(201).json({
             success: true,
-            message: 'Orden creada',
-            order
+            message: 'Pedido creado correctamente',
+            order,
+            details
         })
 
     } catch (error) {
         return res.status(500).json({
             success: false,
-            message: 'Error al crear orden',
+            message: 'Error al crear pedido',
             error: error.message
         })
     }
 }
-
 // Obtener órdenes
 export const getOrders = async (req, res) => {
     try {
