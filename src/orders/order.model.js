@@ -13,6 +13,11 @@ const orderSchema = mongoose.Schema(
         ref: 'Restaurant',
         required: [true, 'El restaurante es requerido']
     },
+    deliveryType: {
+    type: String,
+    enum: ['EN_MESA', 'DOMICILIO', 'PARA_LLEVAR'],
+    required: [true, 'El tipo de entrega es requerido']
+    },
     total: {
         type: Number,
         default: 0,
