@@ -18,6 +18,7 @@ import restaurantsRoutes from '../src/restaurants/restaurant.routes.js';
 import reviewRoutes from '../src/reviews/review.routes.js';
 import tablesRoutes from '../src/tables/table.routes.js';
 import reportRoutes from '../src/reports/report.routes.js';
+import invoiceRoutes from '../src/invoices/invoice.routes.js'
 
 const BASE_PATH = '/Restaurante/v1';
 
@@ -41,6 +42,7 @@ const routes = (app) => {
     app.use(`${BASE_PATH}/restaurants`, restaurantsRoutes);
     app.use(`${BASE_PATH}/tables`, tablesRoutes);
     app.use(`${BASE_PATH}/reports`, reportRoutes);
+    app.use(`${BASE_PATH}/invoices`, invoiceRoutes)
 
     app.get(`${BASE_PATH}/Health`, (request, response) => {
         response.status(200).json({

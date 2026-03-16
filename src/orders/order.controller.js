@@ -4,7 +4,7 @@ import Order from './order.model.js'
 import OrderDetail from '../orderDetails/orderDetail.model.js'
 import Restaurant from '../restaurants/restaurant.model.js'
 import MenuItem from '../menuItems/menuItem.model.js';
-
+import Invoice from '../invoices/invoice.model.js'
 export const createOrder = async (req, res) => {
     try {
 
@@ -178,6 +178,16 @@ export const updateOrderStatus = async (req, res) => {
                 success: false,
                 message: 'Orden no encontrada'
             });
+        }
+        // Si el estado es "ENTREGADO", generar factura
+        if (status === 'ENTREGADO') {
+
+            const invoice = new Invoice({
+                order: order._id,
+                total: order.total
+            })
+
+            await invoice.save()
         }
 
         res.status(200).json({
