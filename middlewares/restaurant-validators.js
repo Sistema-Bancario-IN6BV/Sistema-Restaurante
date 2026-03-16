@@ -1,4 +1,3 @@
-
 import { body, param, query } from 'express-validator';
 import { checkValidators } from './checkValidators.js';
 import { validateJWT } from './validate-JWT.js';
@@ -126,3 +125,4 @@ export const validateGetRestaurants = [
 
 	checkValidators,
 ];
+

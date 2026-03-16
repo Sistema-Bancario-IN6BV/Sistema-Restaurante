@@ -1,56 +1,21 @@
-import { Router } from 'express';
-import {
-	createTable,
-	getTables,
-	getTableById,
-	updateTable,
-	changeTableStatus
-} from './table.controller.js';
-
-import {
-	validateCreateTable,
-	validateUpdateTableRequest,
-	validateGetTableById,
-	validateTableStatusChange,
-	validateGetTables
-} from '../../middlewares/table-validators.js';
+import { Router } from "express";
+import { createTable, getRestaurantTables, getTableById, updateTable, changeTableStatus, changeTableActive } from "./table.controller.js";
+import { validateTableActiveChange } from '../../middlewares/table-validators.js';
 
 const router = Router();
 
-router.post(
-	'/create',
-	validateCreateTable,
-	createTable
-);
+router.post( "/restaurants/:id", createTable );
 
-router.get(
-	'/get',
-	validateGetTables,
-	getTables
-);
+router.get( "/restaurants/:id", getRestaurantTables );
 
-router.get(
-	'/:id',
-	validateGetTableById,
-	getTableById
-);
+router.get( "/:id", getTableById );
 
-router.put(
-	'/:id',
-	validateUpdateTableRequest,
-	updateTable
-);
+router.put( "/:id", updateTable );
 
-router.put(
-	'/:id/activate',
-	validateTableStatusChange,
-	changeTableStatus
-);
+router.patch( "/:id/status", changeTableStatus );
 
-router.put(
-	'/:id/deactivate',
-	validateTableStatusChange,
-	changeTableStatus
-);
+router.put( '/activate/:id', validateTableActiveChange, changeTableActive );
+
+router.put( '/deactivate/:id', validateTableActiveChange, changeTableActive );
 
 export default router;
