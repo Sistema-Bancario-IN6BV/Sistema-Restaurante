@@ -1,177 +1,21 @@
-import { Router } from 'express';
-import {
-	createTable,
-	getTables,
-	getTableById,
-	updateTable,
-	changeTableStatus
-} from './table.controller.js';
-
-import {
-	validateCreateTable,
-	validateUpdateTableRequest,
-	validateGetTableById,
-	validateTableStatusChange,
-	validateGetTables
-} from '../../middlewares/table-validators.js';
+import { Router } from "express";
+import { createTable, getRestaurantTables, getTableById, updateTable, changeTableStatus, changeTableActive } from "./table.controller.js";
+import { validateTableActiveChange } from '../../middlewares/table-validators.js';
 
 const router = Router();
 
-/**
- * @openapi
- * /tables/create:
- *   post:
- *     tags: [Tables]
- *     summary: Crear mesa
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [restaurant, tableNumber, capacity]
- *             properties:
- *               restaurant: { type: string }
- *               tableNumber: { type: number }
- *               capacity: { type: number }
- *     responses:
- *       201:
- *         description: Mesa creada
- *         content:
- *           application/json:
- *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/ApiResponse'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       $ref: '#/components/schemas/Table'
- */
+router.post( "/restaurants/:id", createTable );
 
-router.post(
-	'/create',
-	validateCreateTable,
-	createTable
-);
+router.get( "/restaurants/:id", getRestaurantTables );
 
-/**
- * @openapi
- * /tables/get:
- *   get:
- *     tags: [Tables]
- *     summary: Listar mesas
- *     responses:
- *       200:
- *         description: Listado de mesas
- *         content:
- *           application/json:
- *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/ApiResponse'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/Table'
- */
+router.get( "/:id", getTableById );
 
-router.get(
-	'/get',
-	validateGetTables,
-	getTables
-);
+router.put( "/:id", updateTable );
 
-/**
- * @openapi
- * /tables/{id}:
- *   get:
- *     tags: [Tables]
- *     summary: Obtener mesa por ID
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Mesa encontrada
- */
+router.patch( "/:id/status", changeTableStatus );
 
-router.get(
-	'/:id',
-	validateGetTableById,
-	getTableById
-);
+router.put( '/activate/:id', validateTableActiveChange, changeTableActive );
 
-/**
- * @openapi
- * /tables/{id}:
- *   put:
- *     tags: [Tables]
- *     summary: Actualizar mesa
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Mesa actualizada
- */
-
-router.put(
-	'/:id',
-	validateUpdateTableRequest,
-	updateTable
-);
-
-/**
- * @openapi
- * /tables/{id}/activate:
- *   put:
- *     tags: [Tables]
- *     summary: Activar mesa
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Mesa activada
- */
-
-router.put(
-	'/:id/activate',
-	validateTableStatusChange,
-	changeTableStatus
-);
-
-/**
- * @openapi
- * /tables/{id}/deactivate:
- *   put:
- *     tags: [Tables]
- *     summary: Desactivar mesa
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Mesa desactivada
- */
-
-router.put(
-	'/:id/deactivate',
-	validateTableStatusChange,
-	changeTableStatus
-);
+router.put( '/deactivate/:id', validateTableActiveChange, changeTableActive );
 
 export default router;

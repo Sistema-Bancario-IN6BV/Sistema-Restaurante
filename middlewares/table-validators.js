@@ -67,7 +67,7 @@ export const validateUpdateTableRequest = [
     checkValidators,
 ];
 
-export const validateTableStatusChange = [
+export const validateTableActiveChange = [
     validateJWT,
     requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
     param('id')

@@ -3,175 +3,189 @@
 import Table from './table.model.js';
 import Restaurant from '../restaurants/restaurant.model.js';
 
-// Crear mesa
 export const createTable = async (req, res) => {
     try {
-        const data = req.body;
 
-        // Validar restaurante activo
-        const restaurantExists = await Restaurant.findOne({
-            _id: data.restaurant,
-            isActive: true
-        });
+        const { id } = req.params
+        const data = req.body
 
-        if (!restaurantExists) {
-            return res.status(400).json({
+        const restaurant = await Restaurant.findById(id)
+
+        if(!restaurant){
+            return res.status(404).json({
                 success: false,
-                message: 'El restaurante no existe o está inactivo'
-            });
+                message: 'Restaurante no encontrado'
+            })
         }
 
-        const newTable = new Table(data);
-        await newTable.save();
+        const newTable = new Table({
+            ...data,
+            restaurantId: id
+        })
+
+        await newTable.save()
 
         res.status(201).json({
             success: true,
-            message: 'Mesa creada exitosamente',
-            data: newTable
-        });
+            message: 'Mesa creada correctamente',
+            table: newTable
+        })
 
     } catch (error) {
-        res.status(400).json({
-            success: false,
-            message: 'Error al crear la mesa',
-            error: error.message
-        });
-    }
-};
-
-// Obtener todas las mesas
-export const getTables = async (req, res) => {
-    try {
-        const { page = 1, limit = 10, restaurant } = req.query;
-
-        const pageNumber = parseInt(page);
-        const limitNumber = parseInt(limit);
-
-        const filter = { isActive: true };
-
-        if (restaurant) {
-            filter.restaurant = restaurant;
+        if (error.code === 11000) {
+            return res.status(400).json({
+                success: false,
+                message: 'Ya existe una mesa con ese número en este restaurante'
+            })
         }
 
-        const tables = await Table.find(filter)
-            .limit(limitNumber)
-            .skip((pageNumber - 1) * limitNumber)
-            .sort({ createdAt: -1 })
-            .populate('restaurant', 'name');
+        res.status(500).json({
+            success: false,
+            message: 'Error al crear mesa',
+            error: error.message
+        })
+    }
+}
 
-        const total = await Table.countDocuments(filter);
+export const getRestaurantTables = async (req,res)=>{
+    try{
+
+        const { id } = req.params
+        const { location, status } = req.query
+
+        const filter = { restaurantId: id, active: false }
+
+        if(location) filter.location = location
+        if(status) filter.status = status
+
+        const tables = await Table.find(filter)
+            .populate('restaurantId','name')
 
         res.status(200).json({
             success: true,
-            message: 'Mesas obtenidas exitosamente',
-            total,
-            page: pageNumber,
-            pages: Math.ceil(total / limitNumber),
-            data: tables
-        });
+            total: tables.length,
+            tables
+        })
 
-    } catch (error) {
+    }catch(error){
         res.status(500).json({
             success: false,
-            message: 'Error al obtener las mesas',
+            message:'Error al obtener mesas',
             error: error.message
-        });
+        })
     }
-};
+}
 
-// Obtener mesa por ID
-export const getTableById = async (req, res) => {
-    try {
-        const { id } = req.params;
+export const getTableById = async (req,res)=>{
+    try{
+
+        const { id } = req.params
 
         const table = await Table.findById(id)
-            .populate('restaurant', 'name');
+        .populate('restaurantId','name')
+
+        if(!table || !table.active){
+            return res.status(404).json({
+                success: false,
+                message:'Mesa no encontrada'
+            })
+        }
+
+        res.status(200).json({
+            success: true,
+            table
+        })
+
+    }catch(error){
+
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener mesa',
+            error: error.message
+        })
+    }
+}
+
+export const updateTable = async (req,res)=>{
+    try{
+
+        const { id } = req.params
+        const { capacity, location, description } = req.body
+
+        const table = await Table.findById(id)
+
+        if(!table){
+            return res.status(404).json({
+                success: false,
+                message: 'Mesa no encontrada'
+            })
+        }
+
+        const updatedTable = await Table.findByIdAndUpdate(
+            id,
+            { capacity, location, description },
+            { new: true, runValidators: true }
+        )
+
+        res.status(200).json({
+            success: true,
+            message: 'Mesa actualizada',
+            updatedTable
+        })
+
+    }catch(error){
+
+        res.status(500).json({
+            success: false,
+            message: 'Error al actualizar mesa',
+            error: error.message
+        })
+    }
+}
+
+export const changeTableStatus = async (req,res)=>{
+    try{
+
+        const { id } = req.params
+        const { status } = req.body
+
+        const table = await Table.findById(id)
 
         if (!table) {
             return res.status(404).json({
                 success: false,
                 message: 'Mesa no encontrada'
-            });
+            })
         }
+
+        table.status = status
+        await table.save()
 
         res.status(200).json({
             success: true,
-            message: 'Mesa encontrada',
-            data: table
-        });
+            message: 'Estado actualizado',
+            table
+        })
 
-    } catch (error) {
+    }catch(error){
         res.status(500).json({
             success: false,
-            message: 'Error al obtener la mesa',
+            message: 'Error al cambiar estado',
             error: error.message
-        });
+        })
     }
-};
+}
 
-// Actualizar mesa
-export const updateTable = async (req, res) => {
+export const changeTableActive = async (req, res) => {
     try {
         const { id } = req.params;
 
-        const currentTable = await Table.findById(id);
-
-        if (!currentTable) {
-            return res.status(404).json({
-                success: false,
-                message: 'Mesa no encontrada'
-            });
-        }
-
-        const updateData = { ...req.body };
-
-        // Validar restaurante si se cambia
-        if (updateData.restaurant) {
-            const restaurantExists = await Restaurant.findOne({
-                _id: updateData.restaurant,
-                isActive: true
-            });
-
-            if (!restaurantExists) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'El restaurante no existe o está inactivo'
-                });
-            }
-        }
+        const active = req.url.includes('/activate');
+        const action = active ? 'activada' : 'desactivada';
 
         const updatedTable = await Table.findByIdAndUpdate(
             id,
-            updateData,
-            { new: true, runValidators: true }
-        );
-
-        res.status(200).json({
-            success: true,
-            message: 'Mesa actualizada exitosamente',
-            data: updatedTable
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al actualizar la mesa',
-            error: error.message
-        });
-    }
-};
-
-// Activar / Desactivar mesa
-export const changeTableStatus = async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const isActive = req.url.includes('/activate');
-        const action = isActive ? 'activada' : 'desactivada';
-
-        const updatedTable = await Table.findByIdAndUpdate(
-            id,
-            { isActive },
+            { active },
             { new: true }
         );
 
