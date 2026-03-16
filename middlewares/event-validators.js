@@ -3,71 +3,63 @@ import { checkValidators } from './checkValidators.js';
 import { validateJWT } from './validate-JWT.js';
 import { requireRole } from './validate-role.js';
 import { USER_ROLES } from './roles.js';
-// Validaciones para crear un evento
+
 export const validateCreateField = [
-	validateJWT,
-	requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
+    validateJWT,
+    requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
 
-	body('restaurant')
-		.notEmpty()
-		.withMessage('El restaurante es requerido')
-		.isMongoId()
-		.withMessage('El restaurante debe ser un ObjectId válido'),
+    body('restaurant')
+        .notEmpty().withMessage('El restaurante es requerido')
+        .isMongoId().withMessage('El restaurante debe ser un ObjectId válido'),
 
-	body('title')
-		.trim()
-		.notEmpty()
-		.withMessage('El título es requerido')
-		.isLength({ min: 2, max: 150 })
-		.withMessage('El título debe tener entre 2 y 150 caracteres'),
+    body('title')
+        .trim()
+        .notEmpty().withMessage('El título es requerido')
+        .isLength({ min: 2, max: 150 }).withMessage('El título debe tener entre 2 y 150 caracteres'),
 
-	body('description')
-		.optional()
-		.trim()
-		.isLength({ max: 500 })
-		.withMessage('La descripción no puede exceder 500 caracteres'),
+    body('eventDate')
+        .notEmpty().withMessage('La fecha es requerida')
+        .isISO8601().withMessage('Formato de fecha inválido')
+        .custom((value) => {
+            if (new Date(value) <= new Date()) {
+                throw new Error('La fecha del evento debe ser una fecha futura');
+            }
+            return true;
+        }),
 
-	body('eventDate')
-		.notEmpty()
-		.withMessage('La fecha es requerida')
-		.isISO8601()
-		.withMessage('La fecha debe ser una fecha válida'),
+    body('maxCapacity')
+        .notEmpty().withMessage('La capacidad máxima es requerida')
+        .isInt({ min: 1 }).withMessage('La capacidad debe ser un número mayor a 0'),
 
-	checkValidators,
+    body('tags')
+        .optional()
+        .isArray().withMessage('Los servicios adicionales (tags) deben ser un arreglo'),
+
+    checkValidators,
 ];
 
-// Validaciones para actualizar un evento
 export const validateUpdateFieldRequest = [
-	validateJWT,
-	requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
+    validateJWT,
+    requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
 
-	param('id')
-		.isMongoId()
-		.withMessage('ID debe ser un ObjectId válido de MongoDB'),
+    param('id').isMongoId().withMessage('ID de evento inválido'),
 
-	body('restaurant')
-		.optional()
-		.isMongoId()
-		.withMessage('El restaurante debe ser un ObjectId válido'),
+    body('eventDate')
+        .optional()
+        .isISO8601().withMessage('Formato de fecha inválido')
+        .custom((value) => {
+            if (new Date(value) <= new Date()) {
+                throw new Error('La nueva fecha debe ser futura');
+            }
+            return true;
+        }),
 
-	body('title')
-		.optional()
-		.trim()
-		.isLength({ min: 2, max: 150 })
-		.withMessage('El título debe tener entre 2 y 150 caracteres'),
+    body('status')
+        .optional()
+        .isIn(['ACTIVE', 'CANCELLED', 'FINISHED'])
+        .withMessage('Estado no válido (ACTIVE, CANCELLED o FINISHED)'),
 
-	body('description')
-		.optional()
-		.trim()
-		.isLength({ max: 500 })
-		.withMessage('La descripción no puede exceder 500 caracteres'),
-
-	body('eventDate')
-		.optional()
-		.isISO8601()
-		.withMessage('La fecha debe ser una fecha válida'),
-
-	checkValidators,
+    checkValidators,
 ];
 
 // Activar / Desactivar evento (solo ADMIN)

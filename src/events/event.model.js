@@ -4,31 +4,53 @@ import mongoose from "mongoose";
 
 const eventSchema = mongoose.Schema(
 {
-    restaurant: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Restaurant',
-        required: [true, 'El restaurante es requerido']
-    },
     title: {
         type: String,
-        required: [true, 'El título es requerido'],
-        trim: true
+        required: [true, 'El título del evento es obligatorio'],
+        trim: true,
+        maxLength: [100, 'El título no puede exceder 100 caracteres']
     },
     description: {
         type: String,
-        trim: true
+        trim: true,
+        required: [true, 'La descripción es obligatoria']
     },
-    eventDate: {
+    date: {
         type: Date,
-        required: [true, 'La fecha es requerida']
+        required: [true, 'La fecha es obligatoria'],
+        validate: {
+            validator: function(v) {
+                return v > new Date(); // Evita fechas pasadas
+            },
+            message: 'La fecha del evento debe ser futura.'
+        }
     },
-    photo: {
+    maxCapacity: {
+        type: Number,
+        required: [true, 'La capacidad máxima es requerida'],
+        min: [1, 'La capacidad debe ser al menos de 1 persona']
+    },
+    currentParticipants: {
+        type: Number,
+        default: 0
+    },
+    status: {
         type: String,
-        default: null
+        enum: ['ACTIVE', 'CANCELLED', 'FINISHED'],
+        default: 'ACTIVE'
     },
-    isActive: {
-        type: Boolean,
-        default: true
+    tags: [{
+        type: String,
+        trim: true
+    }],
+    restaurant: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Restaurant',
+        required: [true, 'El evento debe estar ligado a un restaurante']
+    },
+    createdBy: {
+        type: String, // Guardaremos el ID que viene de .NET
+        required: true
     }
 },
 {
@@ -37,7 +59,7 @@ const eventSchema = mongoose.Schema(
 }
 );
 
-eventSchema.index({ restaurant: 1 });
-eventSchema.index({ isActive: 1 });
+// Índice para búsquedas rápidas por fecha y estado
+eventSchema.index({ date: 1, status: 1 });
 
 export default mongoose.model('Event', eventSchema);

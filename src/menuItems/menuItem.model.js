@@ -30,6 +30,11 @@ const menuItemSchema = mongoose.Schema(
         default: 0,
         min: [0, 'El stock no puede ser negativo']
     },
+    minStock: {
+        type: Number,
+        default: 5,
+        min: [0, 'El stock mínimo no puede ser negativo']
+    },
     type: {
         type: String,
         required: [true, 'El tipo es requerido'],

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { changeEventStatus, createEvent, getEventById, getEvents, updateEvent } from './event.controller.js';
+import { changeEventStatus, createEvent, getEventById, getEvents, updateEvent, registerEvent, unregisterEvent } from './event.controller.js';
 import { uploadFieldImage } from '../../middlewares/file-uploader.js';
 import { cleanUploaderFileOnFinish } from '../../middlewares/delete-file-on-error.js';
 import { validateCreateField, validateFieldStatusChange, validateGetFieldById, validateUpdateFieldRequest, validateGetEvents } from '../../middlewares/event-validators.js';
@@ -168,5 +168,18 @@ router.put(
     validateFieldStatusChange,
     changeEventStatus
 )
+
+// NEW Registration routes
+router.post(
+    '/:id/register',
+    validateJWT, // Assuming exists
+    registerEvent
+);
+
+router.delete(
+    '/:id/register',
+    validateJWT,
+    unregisterEvent
+);
 
 export default router;

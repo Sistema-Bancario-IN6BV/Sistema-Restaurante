@@ -161,12 +161,31 @@ export const updateOrderStatus = async (req, res) => {
             }
 
             // Si hay stock suficiente, restar
+            const lowStockAlerts = [];
             for (const detail of orderDetails) {
-                await MenuItem.findByIdAndUpdate(
+                const updatedItem = await MenuItem.findByIdAndUpdate(
                     detail.menuItem._id,
                     { $inc: { stock: -detail.quantity } },
                     { new: true, runValidators: true }
                 );
+                
+                // Check low stock alert
+                if (updatedItem.stock < updatedItem.minStock) {
+                    lowStockAlerts.push({
+                        item: updatedItem.name,
+                        currentStock: updatedItem.stock,
+                        minStock: updatedItem.minStock,
+                        needed: detail.quantity
+                    });
+                }
+            }
+
+            let responseMessage = status === 'ENTREGADO' ? 'Estado actualizado y stock ajustado' : 'Estado actualizado';
+            const responseData = { order };
+
+            if (lowStockAlerts.length > 0) {
+                responseMessage += '. ALERTAS: Stock bajo en:';
+                responseData.lowStockAlerts = lowStockAlerts;
             }
         }
 
@@ -177,12 +196,12 @@ export const updateOrderStatus = async (req, res) => {
             { new: true, runValidators: true }
         );
 
+        responseData.order = order;
         res.status(200).json({
             success: true,
-            message: status === 'ENTREGADO' ? 'Estado actualizado y stock ajustado' : 'Estado actualizado',
-            data: order
+            message: responseMessage,
+            data: responseData
         });
-
     } catch (error) {
         res.status(500).json({
             success: false,
@@ -191,6 +210,7 @@ export const updateOrderStatus = async (req, res) => {
         });
     }
 };
+
 
 
 // Activar / Desactivar orden
