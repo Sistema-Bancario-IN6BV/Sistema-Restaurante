@@ -2,9 +2,12 @@
 
 import { Router } from 'express';
 import {
+    createMenuItemForRestaurantAdmin,
     createMenuItem,
+    deleteMenuItemForRestaurantAdmin,
     getAllMenuItem,
     getMenuItemById,
+    updateMenuItemForRestaurantAdmin,
     updateMenuItem,
     changeMenuItemStatus
 } from './menuItem.controller.js';
@@ -13,6 +16,9 @@ import { uploadMenuItemImage } from '../../middlewares/file-uploader.js';
 import { cleanUploaderFileOnFinish } from '../../middlewares/delete-file-on-error.js';
 
 import {
+    validateRestaurantAdminCreateMenuItem,
+    validateRestaurantAdminDeleteMenuItem,
+    validateRestaurantAdminUpdateMenuItem,
     validateCreateMenuItem,
     validateUpdateMenuItemRequest,
     validateGetMenuItemById,
@@ -21,6 +27,28 @@ import {
 } from '../../middlewares/menuItem-validators.js';
 
 const router = Router();
+
+router.post(
+    '/restaurant-admin/restaurants/:restaurantId/menu-items',
+    uploadMenuItemImage.single('photo'),
+    cleanUploaderFileOnFinish,
+    validateRestaurantAdminCreateMenuItem,
+    createMenuItemForRestaurantAdmin
+);
+
+router.put(
+    '/restaurant-admin/restaurants/:restaurantId/menu-items/:id',
+    uploadMenuItemImage.single('photo'),
+    cleanUploaderFileOnFinish,
+    validateRestaurantAdminUpdateMenuItem,
+    updateMenuItemForRestaurantAdmin
+);
+
+router.delete(
+    '/restaurant-admin/restaurants/:restaurantId/menu-items/:id',
+    validateRestaurantAdminDeleteMenuItem,
+    deleteMenuItemForRestaurantAdmin
+);
 
 /**
  * @openapi

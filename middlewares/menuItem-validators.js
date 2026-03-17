@@ -117,3 +117,91 @@ export const validateGetMenuItems = [
 
     checkValidators,
 ];
+
+export const validateRestaurantAdminCreateMenuItem = [
+    validateJWT,
+    requireRole(USER_ROLES.RESTAURANT_ADMIN),
+
+    param('restaurantId')
+        .isMongoId()
+        .withMessage('El restaurante debe ser un ObjectId válido'),
+
+    body('name')
+        .trim()
+        .notEmpty()
+        .withMessage('El nombre del platillo es requerido')
+        .isLength({ min: 2, max: 150 })
+        .withMessage('El nombre debe tener entre 2 y 150 caracteres'),
+
+    body('description')
+        .optional()
+        .trim()
+        .isLength({ max: 500 })
+        .withMessage('La descripción no puede exceder 500 caracteres'),
+
+    body('price')
+        .notEmpty()
+        .withMessage('El precio es requerido')
+        .isFloat({ min: 0 })
+        .withMessage('El precio debe ser mayor o igual a 0'),
+
+    body('type')
+        .notEmpty()
+        .withMessage('El tipo es requerido')
+        .isIn(['ENTRADA', 'PLATO_FUERTE', 'POSTRE', 'BEBIDA'])
+        .withMessage('Tipo de platillo no válido'),
+
+    checkValidators,
+];
+
+export const validateRestaurantAdminUpdateMenuItem = [
+    validateJWT,
+    requireRole(USER_ROLES.RESTAURANT_ADMIN),
+
+    param('restaurantId')
+        .isMongoId()
+        .withMessage('El restaurante debe ser un ObjectId válido'),
+
+    param('id')
+        .isMongoId()
+        .withMessage('ID debe ser un ObjectId válido de MongoDB'),
+
+    body('name')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 150 })
+        .withMessage('El nombre debe tener entre 2 y 150 caracteres'),
+
+    body('description')
+        .optional()
+        .trim()
+        .isLength({ max: 500 })
+        .withMessage('La descripción no puede exceder 500 caracteres'),
+
+    body('price')
+        .optional()
+        .isFloat({ min: 0 })
+        .withMessage('El precio debe ser mayor o igual a 0'),
+
+    body('type')
+        .optional()
+        .isIn(['ENTRADA', 'PLATO_FUERTE', 'POSTRE', 'BEBIDA'])
+        .withMessage('Tipo de platillo no válido'),
+
+    checkValidators,
+];
+
+export const validateRestaurantAdminDeleteMenuItem = [
+    validateJWT,
+    requireRole(USER_ROLES.RESTAURANT_ADMIN),
+
+    param('restaurantId')
+        .isMongoId()
+        .withMessage('El restaurante debe ser un ObjectId válido'),
+
+    param('id')
+        .isMongoId()
+        .withMessage('ID debe ser un ObjectId válido de MongoDB'),
+
+    checkValidators,
+];
