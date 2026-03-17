@@ -403,3 +403,86 @@ export const validateAdminDeactivateRestaurant = [
 
 	checkValidators,
 ];
+
+const validateClientSearchPagination = [
+	query('page')
+		.optional()
+		.isInt({ min: 1 })
+		.withMessage('La página debe ser un número mayor a 0'),
+
+	query('limit')
+		.optional()
+		.isInt({ min: 1 })
+		.withMessage('El límite debe ser un número mayor a 0'),
+];
+
+export const validateClientSearchRestaurantsByName = [
+	...validateClientSearchPagination,
+	query('name')
+		.trim()
+		.notEmpty()
+		.withMessage('El nombre es requerido')
+		.isLength({ min: 1, max: 150 })
+		.withMessage('El nombre debe tener entre 1 y 150 caracteres'),
+	checkValidators,
+];
+
+export const validateClientSearchRestaurantsByCategory = [
+	...validateClientSearchPagination,
+	query('category')
+		.trim()
+		.notEmpty()
+		.withMessage('La categoría es requerida')
+		.isLength({ min: 1, max: 100 })
+		.withMessage('La categoría debe tener entre 1 y 100 caracteres'),
+	checkValidators,
+];
+
+export const validateClientSearchRestaurantsByCity = [
+	...validateClientSearchPagination,
+	query('city')
+		.trim()
+		.notEmpty()
+		.withMessage('La ciudad es requerida')
+		.isLength({ min: 1, max: 100 })
+		.withMessage('La ciudad debe tener entre 1 y 100 caracteres'),
+	checkValidators,
+];
+
+export const validateClientSearchRestaurantsByAveragePrice = [
+	...validateClientSearchPagination,
+	query('averagePrice')
+		.optional()
+		.isFloat({ min: 0 })
+		.withMessage('El precio promedio debe ser un número mayor o igual a 0'),
+
+	query('minAveragePrice')
+		.optional()
+		.isFloat({ min: 0 })
+		.withMessage('El precio promedio mínimo debe ser un número mayor o igual a 0'),
+
+	query('maxAveragePrice')
+		.optional()
+		.isFloat({ min: 0 })
+		.withMessage('El precio promedio máximo debe ser un número mayor o igual a 0')
+		.custom((value, { req }) => {
+			if (req.query.minAveragePrice && Number(value) < Number(req.query.minAveragePrice)) {
+				throw new Error('El precio promedio máximo no puede ser menor que el mínimo');
+			}
+
+			return true;
+		}),
+
+	query().custom((_value, { req }) => {
+		const hasExact = typeof req.query.averagePrice !== 'undefined';
+		const hasRange = typeof req.query.minAveragePrice !== 'undefined' || typeof req.query.maxAveragePrice !== 'undefined';
+
+		if (!hasExact && !hasRange) {
+			throw new Error('Debe enviar averagePrice o un rango con minAveragePrice y/o maxAveragePrice');
+		}
+
+		return true;
+	}),
+
+	checkValidators,
+];

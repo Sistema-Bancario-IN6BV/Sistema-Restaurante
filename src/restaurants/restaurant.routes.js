@@ -6,6 +6,10 @@ import {
     deactivateRestaurantAdmin,
     getRestaurantByIdAdmin,
     getRestaurantsAdmin,
+    searchClientRestaurantsByAveragePrice,
+    searchClientRestaurantsByCategory,
+    searchClientRestaurantsByCity,
+    searchClientRestaurantsByName,
     getRestaurantById,
     getRestaurants,
     searchRestaurantsByAveragePrice,
@@ -23,6 +27,10 @@ import {
     validateAdminGetRestaurantById,
     validateAdminGetRestaurants,
     validateAdminUpdateRestaurant,
+    validateClientSearchRestaurantsByAveragePrice,
+    validateClientSearchRestaurantsByCategory,
+    validateClientSearchRestaurantsByCity,
+    validateClientSearchRestaurantsByName,
     validateCreateField,
     validateFieldStatusChange,
     validateGetFieldById,
@@ -68,6 +76,30 @@ router.delete(
     '/admin/catalog/:id',
     validateAdminDeactivateRestaurant,
     deactivateRestaurantAdmin
+);
+
+router.get(
+    '/client/search/name',
+    validateClientSearchRestaurantsByName,
+    searchClientRestaurantsByName
+);
+
+router.get(
+    '/client/search/category',
+    validateClientSearchRestaurantsByCategory,
+    searchClientRestaurantsByCategory
+);
+
+router.get(
+    '/client/search/city',
+    validateClientSearchRestaurantsByCity,
+    searchClientRestaurantsByCity
+);
+
+router.get(
+    '/client/search/average-price',
+    validateClientSearchRestaurantsByAveragePrice,
+    searchClientRestaurantsByAveragePrice
 );
 
 /**

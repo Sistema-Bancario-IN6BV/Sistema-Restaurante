@@ -303,6 +303,13 @@ const parsePagination = (body = {}) => {
     return { page, limit };
 };
 
+const parsePaginationQuery = (query = {}) => {
+    const page = Number(query.page) > 0 ? Number(query.page) : 1;
+    const limit = Number(query.limit) > 0 ? Number(query.limit) : 10;
+
+    return { page, limit };
+};
+
 const sendSearchResponse = async (res, filter, page, limit) => {
     const restaurants = await Restaurant.find(filter)
         .limit(limit)
@@ -423,6 +430,99 @@ export const searchRestaurantsByAveragePrice = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: 'Error al buscar restaurantes por precio promedio',
+            error: error.message
+        });
+    }
+};
+
+export const searchClientRestaurantsByName = async (req, res) => {
+    try {
+        const { name } = req.query;
+        const { page, limit } = parsePaginationQuery(req.query);
+
+        const filter = {
+            isActive: true,
+            name: { $regex: name, $options: 'i' }
+        };
+
+        return await sendSearchResponse(res, filter, page, limit);
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Error al buscar restaurantes por nombre para cliente',
+            error: error.message
+        });
+    }
+};
+
+export const searchClientRestaurantsByCategory = async (req, res) => {
+    try {
+        const { category } = req.query;
+        const { page, limit } = parsePaginationQuery(req.query);
+
+        const filter = {
+            isActive: true,
+            category: { $regex: category, $options: 'i' }
+        };
+
+        return await sendSearchResponse(res, filter, page, limit);
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Error al buscar restaurantes por categoría para cliente',
+            error: error.message
+        });
+    }
+};
+
+export const searchClientRestaurantsByCity = async (req, res) => {
+    try {
+        const { city } = req.query;
+        const { page, limit } = parsePaginationQuery(req.query);
+
+        const filter = {
+            isActive: true,
+            address: { $regex: city, $options: 'i' }
+        };
+
+        return await sendSearchResponse(res, filter, page, limit);
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Error al buscar restaurantes por ciudad para cliente',
+            error: error.message
+        });
+    }
+};
+
+export const searchClientRestaurantsByAveragePrice = async (req, res) => {
+    try {
+        const { averagePrice, minAveragePrice, maxAveragePrice } = req.query;
+        const { page, limit } = parsePaginationQuery(req.query);
+
+        const filter = {
+            isActive: true
+        };
+
+        if (typeof averagePrice !== 'undefined') {
+            filter.averagePrice = Number(averagePrice);
+        } else {
+            filter.averagePrice = {};
+
+            if (typeof minAveragePrice !== 'undefined') {
+                filter.averagePrice.$gte = Number(minAveragePrice);
+            }
+
+            if (typeof maxAveragePrice !== 'undefined') {
+                filter.averagePrice.$lte = Number(maxAveragePrice);
+            }
+        }
+
+        return await sendSearchResponse(res, filter, page, limit);
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: 'Error al buscar restaurantes por precio promedio para cliente',
             error: error.message
         });
     }
