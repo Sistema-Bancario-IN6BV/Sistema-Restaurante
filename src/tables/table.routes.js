@@ -1,18 +1,19 @@
 import { Router } from "express";
 import { createTable, getRestaurantTables, getTableById, updateTable, changeTableStatus, changeTableActive } from "./table.controller.js";
-import { validateTableActiveChange } from '../../middlewares/table-validators.js';
+import { validateCreateTable, validateTableActiveChange, validateUpdateTableRequest, validateGetTableById,
+        validateChangeTableStatus, validateGetTables } from '../../middlewares/table-validators.js';
 
 const router = Router();
 
-router.post( "/restaurants/:id", createTable );
+router.post( "/restaurants/:id", validateCreateTable, createTable );
 
-router.get( "/restaurants/:id", getRestaurantTables );
+router.get( "/restaurants/:id", validateGetTables, getRestaurantTables );
 
-router.get( "/:id", getTableById );
+router.get( "/:id", validateGetTableById, getTableById);
 
-router.put( "/:id", updateTable );
+router.put( "/:id", validateUpdateTableRequest, updateTable );
 
-router.patch( "/:id/status", changeTableStatus );
+router.patch( "/:id/status", validateChangeTableStatus, changeTableStatus );
 
 router.put( '/activate/:id', validateTableActiveChange, changeTableActive );
 
