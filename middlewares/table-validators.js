@@ -8,13 +8,11 @@ export const validateCreateTable = [
     validateJWT,
     requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
 
-    body('restaurant')
-        .notEmpty()
-        .withMessage('El restaurante es requerido')
+    param('id')
         .isMongoId()
         .withMessage('El restaurante debe ser un ObjectId válido'),
 
-    body('tableNumber')
+    body('number')
         .notEmpty()
         .withMessage('El número de mesa es requerido')
         .isInt({ min: 1 })
@@ -77,6 +75,8 @@ export const validateTableActiveChange = [
 ];
 
 export const validateGetTableById = [
+    validateJWT,
+    requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
     param('id')
         .isMongoId()
         .withMessage('ID debe ser un ObjectId válido de MongoDB'),
@@ -84,20 +84,24 @@ export const validateGetTableById = [
 ];
 
 export const validateGetTables = [
-    query('page')
-        .optional()
-        .isInt({ min: 1 })
-        .withMessage('La página debe ser un número mayor a 0'),
-
-    query('limit')
-        .optional()
-        .isInt({ min: 1 })
-        .withMessage('El límite debe ser un número mayor a 0'),
-
-    query('restaurant')
-        .optional()
+    validateJWT,
+    requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
+    param('id')
         .isMongoId()
-        .withMessage('El restaurante debe ser un ObjectId válido'),
+        .withMessage('ID debe ser un ObjectId válido de MongoDB'),
+    checkValidators,
+];
 
+export const validateChangeTableStatus = [
+    validateJWT,
+    requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
+    param('id')
+        .isMongoId()
+        .withMessage('ID debe ser un ObjectId válido de MongoDB'),
+    body('status')
+        .notEmpty()
+        .withMessage('El estado es requerido')
+        .isIn(['AVAILABLE', 'OCCUPIED', 'RESERVED'])
+        .withMessage('Estado de mesa no válido'),
     checkValidators,
 ];
