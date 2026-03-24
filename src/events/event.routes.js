@@ -1,185 +1,27 @@
-import { Router } from 'express';
-import { changeEventStatus, createEvent, getEventById, getEvents, updateEvent, registerEvent, unregisterEvent } from './event.controller.js';
-import { uploadFieldImage } from '../../middlewares/file-uploader.js';
-import { cleanUploaderFileOnFinish } from '../../middlewares/delete-file-on-error.js';
-import { validateCreateField, validateFieldStatusChange, validateGetFieldById, validateUpdateFieldRequest, validateGetEvents } from '../../middlewares/event-validators.js';
+'use strict'
 
-const router = Router();
+import { Router } from "express"
+import { 
+    createEvent, 
+    registerToEvent, 
+    cancelRegistration,
+    getAttendeesList 
+} from "./event.controller.js"
+import { validateJWT } from "../../middlewares/validate-JWT.js"
+import { requireRole } from "../../middlewares/validate-role.js"
 
-/**
- * @openapi
- * /events/create:
- *   post:
- *     tags: [Events]
- *     summary: Crear evento
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             required: [restaurant, title, eventDate]
- *             properties:
- *               restaurant: { type: string }
- *               title: { type: string }
- *               description: { type: string }
- *               eventDate: { type: string, format: date-time }
- *               image: { type: string, format: binary }
- *     responses:
- *       201:
- *         description: Evento creado
- *         content:
- *           application/json:
- *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/ApiResponse'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       $ref: '#/components/schemas/Event'
- */
+const api = Router()
 
-router.post(
-    '/create',
-    uploadFieldImage.single('image'),
-    cleanUploaderFileOnFinish,
-    validateCreateField,
-    createEvent
-)
+// SR-190: Solo un Admin puede crear el evento
+api.post("/", [validateJWT, requireRole('ADMIN')], createEvent)
 
-/**
- * @openapi
- * /events/get:
- *   get:
- *     tags: [Events]
- *     summary: Listar eventos
- *     responses:
- *       200:
- *         description: Listado de eventos
- *         content:
- *           application/json:
- *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/ApiResponse'
- *                 - type: object
- *                   properties:
- *                     data:
- *                       type: array
- *                       items:
- *                         $ref: '#/components/schemas/Event'
- */
+// SR-204: Cualquier usuario logueado puede inscribirse
+api.post("/register/:id", [validateJWT], registerToEvent)
 
-router.get(
-    '/get',
-    validateGetEvents,
-    getEvents
-)
+// SR-207: El usuario puede cancelar su propia inscripción
+api.delete("/cancel/:id", [validateJWT], cancelRegistration)
 
-/**
- * @openapi
- * /events/{id}:
- *   get:
- *     tags: [Events]
- *     summary: Obtener evento por ID
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Evento encontrado
- */
+// SR-208: El Admin puede ver la lista de asistentes
+api.get("/attendees/:id", [validateJWT, requireRole('ADMIN')], getAttendeesList)
 
-router.get(
-    '/:id',
-    validateGetFieldById,
-    getEventById
-)
-
-/**
- * @openapi
- * /events/{id}:
- *   put:
- *     tags: [Events]
- *     summary: Actualizar evento
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Evento actualizado
- */
-
-router.put(
-    '/:id',
-    uploadFieldImage.single('image'),
-    cleanUploaderFileOnFinish,
-    validateUpdateFieldRequest,
-    updateEvent
-);
-
-/**
- * @openapi
- * /events/{id}/activate:
- *   put:
- *     tags: [Events]
- *     summary: Activar evento
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Evento activado
- */
-
-router.put(
-    '/:id/activate',
-    validateFieldStatusChange,
-    changeEventStatus
-)
-
-/**
- * @openapi
- * /events/{id}/desactivate:
- *   put:
- *     tags: [Events]
- *     summary: Desactivar evento
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Evento desactivado
- */
-
-router.put(
-    '/:id/desactivate',
-    validateFieldStatusChange,
-    changeEventStatus
-)
-
-// NEW Registration routes
-router.post(
-    '/:id/register',
-    validateJWT, // Assuming exists
-    registerEvent
-);
-
-router.delete(
-    '/:id/register',
-    validateJWT,
-    unregisterEvent
-);
-
-export default router;
+export default api

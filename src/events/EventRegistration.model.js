@@ -1,27 +1,29 @@
 'use strict';
-
 import mongoose from "mongoose";
 
 const eventRegistrationSchema = mongoose.Schema({
-    userId: {
-        type: String, // ID del cliente desde JWT
-        required: [true, 'User ID requerido']
-    },
-    eventId: {
+    event: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Event',
-        required: [true, 'Event ID requerido']
+        required: true
+    },
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User', // Asumiendo que así se llama tu modelo en Auth
+        required: true
+    },
+    registeredAt: {
+        type: Date,
+        default: Date.now
     },
     status: {
         type: String,
-        enum: ['REGISTERED', 'CANCELLED'],
-        default: 'REGISTERED'
+        enum: ['CONFIRMADA', 'CANCELADA'],
+        default: 'CONFIRMADA'
     }
-}, {
-    timestamps: true,
-    versionKey: false
-});
+}, { timestamps: true });
 
-eventRegistrationSchema.index({ userId: 1, eventId: 1 }); // Unique registration per user-event
+// SR-206: Un usuario solo se inscribe una vez por evento
+eventRegistrationSchema.index({ event: 1, user: 1 }, { unique: true });
 
 export default mongoose.model('EventRegistration', eventRegistrationSchema);

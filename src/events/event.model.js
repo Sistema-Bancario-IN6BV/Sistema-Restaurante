@@ -1,28 +1,29 @@
 'use strict';
-
 import mongoose from "mongoose";
 
-const eventSchema = mongoose.Schema(
-{
+const eventSchema = mongoose.Schema({
+    restaurant: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Restaurant',
+        required: [true, 'El restaurante es requerido']
+    },
     title: {
         type: String,
-        required: [true, 'El título del evento es obligatorio'],
-        trim: true,
-        maxLength: [100, 'El título no puede exceder 100 caracteres']
+        required: [true, 'El título del evento es requerido'],
+        trim: true
     },
     description: {
         type: String,
-        trim: true,
-        required: [true, 'La descripción es obligatoria']
+        maxLength: [1000, 'Máximo 1000 caracteres']
     },
     date: {
         type: Date,
         required: [true, 'La fecha es obligatoria'],
         validate: {
             validator: function(v) {
-                return v > new Date(); // Evita fechas pasadas
+                return v > new Date(); // SR-190: Fecha futura obligatoria
             },
-            message: 'La fecha del evento debe ser futura.'
+            message: 'La fecha del evento debe ser posterior a la actual'
         }
     },
     maxCapacity: {
@@ -30,36 +31,16 @@ const eventSchema = mongoose.Schema(
         required: [true, 'La capacidad máxima es requerida'],
         min: [1, 'La capacidad debe ser al menos de 1 persona']
     },
-    currentParticipants: {
+    currentRegistrations: {
         type: Number,
         default: 0
     },
     status: {
         type: String,
-        enum: ['ACTIVE', 'CANCELLED', 'FINISHED'],
-        default: 'ACTIVE'
+        enum: ['ACTIVO', 'CANCELADO', 'FINALIZADO'],
+        default: 'ACTIVO'
     },
-    tags: [{
-        type: String,
-        trim: true
-    }],
-    restaurant: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Restaurant',
-        required: [true, 'El evento debe estar ligado a un restaurante']
-    },
-    createdBy: {
-        type: String, // Guardaremos el ID que viene de .NET
-        required: true
-    }
-},
-{
-    timestamps: true,
-    versionKey: false
-}
-);
-
-// Índice para búsquedas rápidas por fecha y estado
-eventSchema.index({ date: 1, status: 1 });
+    tags: [String] // SR-190: Servicios adicionales como tags
+}, { timestamps: true });
 
 export default mongoose.model('Event', eventSchema);

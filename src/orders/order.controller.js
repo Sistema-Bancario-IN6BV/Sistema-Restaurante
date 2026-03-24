@@ -2,8 +2,11 @@
 
 import Order from './order.model.js'
 import OrderDetail from '../orderDetails/orderDetail.model.js'
-import Restaurant from '../restaurants/restaurant.model.js' // ✅ IMPORT NECESARIO
-import MenuItem from '../menuItems/menuItem.model.js';
+import Restaurant from '../restaurants/restaurant.model.js'
+import MenuItem from '../menuItems/menuItem.model.js'
+// Nuevos imports para la lógica de inventario profesional
+import MenuItemIngredient from '../menuItems/menuItemIngredient.model.js'
+import Ingredient from '../menuItems/ingredient.model.js';
 
 export const createOrder = async (req, res) => {
     try {
@@ -17,7 +20,6 @@ export const createOrder = async (req, res) => {
         }
 
         const restaurantExists = await Restaurant.findById(restaurant)
-
         if (!restaurantExists) {
             return res.status(404).json({
                 success: false,
@@ -49,12 +51,9 @@ export const createOrder = async (req, res) => {
     }
 }
 
-// Obtener órdenes
 export const getOrders = async (req, res) => {
     try {
-
         const { page = 1, limit = 10, isActive = true } = req.query;
-
         const filter = { isActive };
 
         const orders = await Order.find(filter)
@@ -75,7 +74,6 @@ export const getOrders = async (req, res) => {
                 limit: parseInt(limit)
             }
         });
-
     } catch (error) {
         res.status(500).json({
             success: false,
@@ -85,15 +83,10 @@ export const getOrders = async (req, res) => {
     }
 };
 
-
-// Obtener orden por ID con detalles
 export const getOrderById = async (req, res) => {
     try {
-
         const { id } = req.params;
-
-        const order = await Order.findById(id)
-            .populate('restaurant');
+        const order = await Order.findById(id).populate('restaurant');
 
         if (!order) {
             return res.status(404).json({
@@ -109,12 +102,8 @@ export const getOrderById = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            data: {
-                order,
-                details
-            }
+            data: { order, details }
         });
-
     } catch (error) {
         res.status(500).json({
             success: false,
@@ -124,17 +113,13 @@ export const getOrderById = async (req, res) => {
     }
 };
 
-
-// Cambiar estado de orden
+// --- LÓGICA DE ACTUALIZACIÓN CON DESCUENTO DE INVENTARIO (SR-199 / SR-200) ---
 export const updateOrderStatus = async (req, res) => {
     try {
-
         const { id } = req.params;
         const { status } = req.body;
 
-        // Obtener la orden actual
         const currentOrder = await Order.findById(id);
-        
         if (!currentOrder) {
             return res.status(404).json({
                 success: false,
@@ -142,66 +127,73 @@ export const updateOrderStatus = async (req, res) => {
             });
         }
 
-        // Si el nuevo estado es ENTREGADO y antes no lo era
-        if (status === 'ENTREGADO' && currentOrder.status !== 'ENTREGADO') {
-            // Obtener detalles del pedido
-            const orderDetails = await OrderDetail.find({
-                order: id,
-                isActive: true
-            }).populate('menuItem');
+        let lowStockAlerts = [];
 
-            // Verificar stock disponible
+        // Si el nuevo estado es ENTREGADO y antes no lo era, procesamos inventario
+        if (status === 'ENTREGADO' && currentOrder.status !== 'ENTREGADO') {
+            const orderDetails = await OrderDetail.find({ order: id, isActive: true }).populate('menuItem');
+
+            // 1. Recopilar todos los ingredientes necesarios (mapeo de recetas)
+            let neededIngredientsMap = [];
+
             for (const detail of orderDetails) {
-                if (detail.menuItem.stock < detail.quantity) {
+                const recipe = await MenuItemIngredient.find({ menuItem: detail.menuItem._id }).populate('ingredient');
+                
+                for (const item of recipe) {
+                    neededIngredientsMap.push({
+                        ingredientId: item.ingredient._id,
+                        name: item.ingredient.name,
+                        amountToSubtract: item.quantity * detail.quantity,
+                        currentStock: item.ingredient.stock
+                    });
+                }
+            }
+
+            // 2. Validación de Pre-vuelo: ¿Tenemos suficiente de TODO? (SR-201 - Test de negativos)
+            for (const item of neededIngredientsMap) {
+                if (item.currentStock < item.amountToSubtract) {
                     return res.status(400).json({
                         success: false,
-                        message: `Stock insuficiente para ${detail.menuItem.name}. Disponible: ${detail.menuItem.stock}, Requerido: ${detail.quantity}`
+                        message: `Stock insuficiente de insumos: ${item.name}. Disponible: ${item.currentStock}, Necesario: ${item.amountToSubtract}`
                     });
                 }
             }
 
-            // Si hay stock suficiente, restar
-            const lowStockAlerts = [];
-            for (const detail of orderDetails) {
-                const updatedItem = await MenuItem.findByIdAndUpdate(
-                    detail.menuItem._id,
-                    { $inc: { stock: -detail.quantity } },
+            // 3. Ejecutar descuentos en la base de datos
+            for (const item of neededIngredientsMap) {
+                const updatedIng = await Ingredient.findByIdAndUpdate(
+                    item.ingredientId,
+                    { $inc: { stock: -item.amountToSubtract } },
                     { new: true, runValidators: true }
                 );
-                
-                // Check low stock alert
-                if (updatedItem.stock < updatedItem.minStock) {
+
+                // SR-200: Alerta si stock resultante < mínimo
+                if (updatedIng.stock < updatedIng.minStock) {
                     lowStockAlerts.push({
-                        item: updatedItem.name,
-                        currentStock: updatedItem.stock,
-                        minStock: updatedItem.minStock,
-                        needed: detail.quantity
+                        ingredient: updatedIng.name,
+                        current: updatedIng.stock,
+                        min: updatedIng.minStock
                     });
                 }
-            }
-
-            let responseMessage = status === 'ENTREGADO' ? 'Estado actualizado y stock ajustado' : 'Estado actualizado';
-            const responseData = { order };
-
-            if (lowStockAlerts.length > 0) {
-                responseMessage += '. ALERTAS: Stock bajo en:';
-                responseData.lowStockAlerts = lowStockAlerts;
             }
         }
 
-        // Actualizar el estado de la orden
-        const order = await Order.findByIdAndUpdate(
+        // Actualizar el estado final de la orden
+        const updatedOrder = await Order.findByIdAndUpdate(
             id,
             { status },
             { new: true, runValidators: true }
         );
 
-        responseData.order = order;
         res.status(200).json({
             success: true,
-            message: responseMessage,
-            data: responseData
+            message: lowStockAlerts.length > 0 ? 'Orden entregada con alertas de stock bajo' : 'Estado de orden actualizado',
+            data: {
+                order: updatedOrder,
+                alerts: lowStockAlerts.length > 0 ? lowStockAlerts : null
+            }
         });
+
     } catch (error) {
         res.status(500).json({
             success: false,
@@ -211,22 +203,13 @@ export const updateOrderStatus = async (req, res) => {
     }
 };
 
-
-
-// Activar / Desactivar orden
 export const changeOrderStatus = async (req, res) => {
     try {
-
         const { id } = req.params;
-
         const isActive = req.url.includes('/activate');
         const action = isActive ? 'activada' : 'desactivada';
 
-        const order = await Order.findByIdAndUpdate(
-            id,
-            { isActive },
-            { new: true }
-        );
+        const order = await Order.findByIdAndUpdate(id, { isActive }, { new: true });
 
         if (!order) {
             return res.status(404).json({
@@ -240,7 +223,6 @@ export const changeOrderStatus = async (req, res) => {
             message: `Orden ${action} exitosamente`,
             data: order
         });
-
     } catch (error) {
         res.status(500).json({
             success: false,
@@ -249,4 +231,3 @@ export const changeOrderStatus = async (req, res) => {
         });
     }
 };
-

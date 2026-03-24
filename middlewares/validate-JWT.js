@@ -44,10 +44,10 @@ export const validateJWT = (req, res, next) => {
         }
 
         req.user = {
-            id: decoded.sub, // userId del servicio de autenticación
-            jti: decoded.jti, // ID único del token
-            iat: decoded.iat, // Emitido en
-            role: decoded.role || USER_ROLES.CUSTOMER, // Rol del usuario (default: USER_ROLE)
+            id: decoded.sub || decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'],
+            role: decoded.role || decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || USER_ROLES.CUSTOMER,
+            jti: decoded.jti,
+            iat: decoded.iat
         };
 
         next();
