@@ -1,170 +1,184 @@
-import Invoice from './invoice.model.js'
-import Order from '../orders/order.model.js'
+'use strict';
 
-// Crear factura
+import Invoice from './invoice.model.js';
+import Order from '../orders/order.model.js';
+import mongoose from 'mongoose';
+
+// POST /invoices (Crear factura desde una orden)
 export const createInvoice = async (req, res) => {
-    try {
+  try {
+    const { orderId } = req.body;
+    
+    // Validar que la orden existe
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ success: false, message: 'Orden no encontrada' });
 
-        const { order } = req.body
-
-        const orderFound = await Order.findById(order)
-
-        if (!orderFound) {
-            return res.status(404).json({
-                success: false,
-                message: 'Orden no encontrada'
-            })
-        }
-
-        const invoice = new Invoice({
-            order,
-            total: orderFound.total
-        })
-
-        await invoice.save()
-
-        res.status(201).json({
-            success: true,
-            message: 'Factura creada',
-            data: invoice
-        })
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al crear factura',
-            error: error.message
-        })
+    // Validar que el usuario es dueño de la orden o es admin
+    if (order.userId !== req.user.id && req.user.role !== 'PLATFORM_ADMIN' && req.user.role !== 'RESTAURANT_ADMIN') {
+      return res.status(403).json({ success: false, message: 'No tienes permisos para crear facturas de esta orden' });
     }
-}
 
-// Mis facturas
+    // Validar que no existe una factura para esta orden
+    const existingInvoice = await Invoice.findOne({ orderId });
+    if (existingInvoice) {
+      return res.status(409).json({ success: false, message: 'Ya existe una factura para esta orden' });
+    }
+
+    // Crear factura desde la orden
+    const invoiceNumber = `INV-${Date.now()}-${orderId.substring(0, 6).toUpperCase()}`;
+    const taxRate = 0.12; // 12% tax
+    const subtotal = order.total;
+    const taxAmount = Math.round(subtotal * taxRate * 100) / 100;
+    const total = subtotal + taxAmount;
+
+    const invoice = await Invoice.create({
+      invoiceNumber,
+      orderId,
+      userId: order.userId,
+      restaurantId: order.restaurantId,
+      items: order.items,
+      subtotal,
+      taxRate,
+      taxAmount,
+      total,
+      status: 'PENDING',
+    });
+
+    await invoice.populate([
+      { path: 'restaurantId', select: 'name' },
+      { path: 'orderId', select: 'type status' }
+    ]);
+
+    res.status(201).json({ success: true, message: 'Factura creada', data: invoice });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ success: false, message: 'Ya existe una factura para esta orden' });
+    }
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// GET /invoices/my
 export const getMyInvoices = async (req, res) => {
-    try {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const filter = { userId: req.user.id };
 
-        const invoices = await Invoice.find()
-            .populate('order')
+    const [invoices, total] = await Promise.all([
+      Invoice.find(filter).populate('restaurantId', 'name').populate('orderId', 'type status')
+        .sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)),
+      Invoice.countDocuments(filter),
+    ]);
 
-        res.status(200).json({
-            success: true,
-            data: invoices
-        })
+    res.json({ success: true, data: invoices, pagination: { total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
 
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al obtener facturas',
-            error: error.message
-        })
-    }
-}
-
-// Factura por orden
+// GET /invoices/order/:orderId
 export const getInvoiceByOrder = async (req, res) => {
-    try {
+  try {
+    const invoice = await Invoice.findOne({ orderId: req.params.orderId })
+      .populate('restaurantId', 'name').populate('orderId', 'type status items');
+    if (!invoice) return res.status(404).json({ success: false, message: 'Factura no encontrada' });
+    res.json({ success: true, data: invoice });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
 
-        const { orderId } = req.params
-
-        const invoice = await Invoice.findOne({ order: orderId })
-            .populate('order')
-
-        if (!invoice) {
-            return res.status(404).json({
-                success: false,
-                message: 'Factura no encontrada'
-            })
-        }
-
-        res.status(200).json({
-            success: true,
-            data: invoice
-        })
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al buscar factura',
-            error: error.message
-        })
+// GET /invoices/restaurant/:id
+export const getInvoicesByRestaurant = async (req, res) => {
+  try {
+    // Solo RESTAURANT_ADMIN y PLATFORM_ADMIN pueden ver facturas de restaurante
+    if (req.user.role !== 'RESTAURANT_ADMIN' && req.user.role !== 'PLATFORM_ADMIN') {
+      return res.status(403).json({ success: false, message: 'No tienes permisos para ver facturas de restaurante' });
     }
-}
 
-// Pagar factura
+    const { from, to, page = 1, limit = 10 } = req.query;
+    const filter = { restaurantId: req.params.id };
+
+    if (from || to) {
+      filter.issuedAt = {};
+      if (from) filter.issuedAt.$gte = new Date(from);
+      if (to) filter.issuedAt.$lte = new Date(to);
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const [invoices, total, revenueAgg] = await Promise.all([
+      Invoice.find(filter).sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)),
+      Invoice.countDocuments(filter),
+      Invoice.aggregate([
+        { $match: { ...filter, restaurantId: new mongoose.Types.ObjectId(req.params.id) } },
+        { $group: { _id: '$status', total: { $sum: '$total' } } },
+      ]),
+    ]);
+
+    const revenueByStatus = revenueAgg.reduce((acc, g) => { acc[g._id] = g.total; return acc; }, {});
+
+    res.json({
+      success: true,
+      data: invoices,
+      totalRevenue: revenueByStatus['PAID'] || 0,
+      totalPending: revenueByStatus['PENDING'] || 0,
+      pagination: { total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// PATCH /invoices/:id/pay
 export const payInvoice = async (req, res) => {
-    try {
-
-        const { id } = req.params
-
-        const invoice = await Invoice.findByIdAndUpdate(
-            id,
-            { paid: true },
-            { new: true }
-        )
-
-        res.status(200).json({
-            success: true,
-            message: 'Factura pagada',
-            data: invoice
-        })
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al pagar factura',
-            error: error.message
-        })
+  try {
+    const { paymentMethod } = req.body;
+    const invoice = await Invoice.findById(req.params.id);
+    if (!invoice) return res.status(404).json({ success: false, message: 'Factura no encontrada' });
+    
+    // Solo el dueño, restaurante admin, o platform admin pueden pagar
+    if (invoice.userId !== req.user.id && req.user.role !== 'RESTAURANT_ADMIN' && req.user.role !== 'PLATFORM_ADMIN') {
+      return res.status(403).json({ success: false, message: 'No tienes permisos para pagar esta factura' });
     }
-}
+    
+    if (invoice.status === 'PAID') {
+      return res.status(400).json({ success: false, message: 'La factura ya está pagada' });
+    }
 
-// Eliminar factura
+    invoice.status = 'PAID';
+    invoice.paymentMethod = paymentMethod;
+    invoice.paidAt = new Date();
+    await invoice.save();
+
+    res.json({ success: true, message: 'Factura pagada', data: invoice });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// DELETE /invoices/:id (soft delete via CANCELLED status)
 export const deleteInvoice = async (req, res) => {
-    try {
+  try {
+    const invoice = await Invoice.findById(req.params.id);
+    if (!invoice) return res.status(404).json({ success: false, message: 'Factura no encontrada' });
 
-        const { id } = req.params
-
-        const invoice = await Invoice.findByIdAndUpdate(
-            id,
-            { isActive: false },
-            { new: true }
-        )
-
-        res.status(200).json({
-            success: true,
-            message: 'Factura eliminada',
-            data: invoice
-        })
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al eliminar factura',
-            error: error.message
-        })
+    // Ownership validation: only customer or admin can delete
+    if (invoice.userId !== req.user.id && req.user.role !== 'PLATFORM_ADMIN') {
+      return res.status(403).json({ success: false, message: 'No tienes permisos para eliminar esta factura' });
     }
-}
-export const getRestaurantInvoices = async (req, res) => {
-    try {
 
-        const { restaurantId } = req.params
-
-        const invoices = await Invoice.find()
-            .populate({
-                path: 'order',
-                match: { restaurant: restaurantId }
-            })
-
-        const filteredInvoices = invoices.filter(i => i.order !== null)
-
-        res.status(200).json({
-            success: true,
-            data: filteredInvoices
-        })
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al obtener facturas del restaurante',
-            error: error.message
-        })
+    // Cannot delete paid invoices
+    if (invoice.status === 'PAID') {
+      return res.status(400).json({ success: false, message: 'No se pueden eliminar facturas pagadas' });
     }
-}
+
+    // Soft delete: mark as CANCELLED
+    invoice.status = 'CANCELLED';
+    await invoice.save();
+
+    res.json({ success: true, message: 'Factura eliminada', data: invoice });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
