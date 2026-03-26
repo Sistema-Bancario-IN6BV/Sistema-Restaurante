@@ -7,7 +7,6 @@ import { CloudinaryStorage } from "multer-storage-cloudinary";
 
 dotenv.config();
 
-// FIX: Bypass SSL (Cloudinary, etc.)
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 cloudinary.config({
@@ -71,6 +70,10 @@ export const uploadFieldImage = createCloudinaryUploader(
 
 export const uploadMenuItemImage = createCloudinaryUploader(
     process.env.CLOUDINARY_MENUITEM_FOLDER || 'sistemaBancario/menuItems'
+)
+
+export const uploadRestaurantImage = createCloudinaryUploader(
+    process.env.CLOUDINARY_RESTAURANT_FOLDER || 'sistemaBancario/restaurants'
 )
 
 export { cloudinary }
