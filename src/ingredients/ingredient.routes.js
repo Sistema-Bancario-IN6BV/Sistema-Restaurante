@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { updateIngredient, restockIngredient, deleteIngredient } from './ingredient.controller.js';
-import { validateUpdateIngredientId, validateRestockIngredientId, validateDeleteIngredientId } from '../middlewares/inventory-validators.js';
+import { validateUpdateIngredientId, validateRestockIngredientId, validateDeleteIngredientId } from '../../middlewares/inventory-validators.js';
 const router = Router();
 
 router.put('/:id', validateUpdateIngredientId, updateIngredient);
