@@ -220,3 +220,57 @@ export const restaurantReportExcel = async (req, res) => {
         });
     }
 };
+
+// ==================== ADICIONALES: OVERVIEW / PERFORMANCE / EXPORT WRAPPERS ====================
+
+export const getOverviewReport = async (req, res) => {
+    try {
+        const { restaurantId } = req.query;
+
+        const [topSelling, peak, demand, reservations] = await Promise.all([
+            getTopSellingPlates(restaurantId, 10),
+            getPeakHours(restaurantId),
+            getRestaurantDemand(10),
+            getReservationStats(restaurantId),
+        ]);
+
+        res.status(200).json({
+            success: true,
+            data: {
+                topSelling,
+                peak,
+                demand,
+                reservations,
+            },
+            message: 'Resumen de reportes obtenido exitosamente'
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const getRestaurantPerformanceReport = async (req, res) => {
+    try {
+        const { restaurantId } = req.query;
+
+        const data = await getRestaurantPerformance(restaurantId);
+
+        res.status(200).json({ success: true, data, message: 'Reporte de rendimiento obtenido exitosamente' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const exportRestaurantPerformanceReport = async (req, res) => {
+    try {
+        const { restaurantId, format = 'pdf' } = req.query;
+
+        if (format === 'excel') {
+            await generateRestaurantReportExcel(restaurantId, res);
+        } else {
+            await generateRestaurantReportPDF(restaurantId, res);
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

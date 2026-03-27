@@ -1,55 +1,18 @@
 import { Router } from 'express';
-import {
-	createReservation,
-	getReservations,
-	getReservationById,
-	updateReservationStatus,
-	changeReservationStatus
-} from './reservation.controller.js';
-
-import {
-	validateCreateReservation,
-	validateGetReservations,
-	validateReservationId,
-	validateReservationStatusChange
-} from '../../middlewares/reservation-validators.js';
+import { createReservation, getMyReservations, getReservationsByRestaurant, getReservationById, 
+		updateReservation, cancelReservation, confirmReservation, } from './reservation.controller.js';
+import { validateCreateReservation, validateGetMyReservations, validateGetReservationsByRestaurant, 
+		validateGetReservationById, validateUpdateReservation, validateCancelReservation,
+		validateConfirmReservation } from '../../middlewares/reservation-validators.js';
 
 const router = Router();
 
-router.post(
-	'/create',
-	validateCreateReservation,
-	createReservation
-);
-
-router.get(
-	'/get',
-	validateGetReservations,
-	getReservations
-);
-
-router.get(
-	'/:id',
-	validateReservationId,
-	getReservationById
-);
-
-router.put(
-	'/:id/status',
-	validateReservationStatusChange,
-	updateReservationStatus
-);
-
-router.put(
-	'/:id/activate',
-	validateReservationId,
-	changeReservationStatus
-);
-
-router.put(
-	'/:id/deactivate',
-	validateReservationId,
-	changeReservationStatus
-);
+router.post('/create', validateCreateReservation, createReservation);
+router.get('/my', validateGetMyReservations, getMyReservations);
+router.get('/restaurant/:id', validateGetReservationsByRestaurant, getReservationsByRestaurant);
+router.get('/:id', validateGetReservationById, getReservationById);
+router.put('/:id', validateUpdateReservation, updateReservation);
+router.patch('/:id/cancel', validateCancelReservation, cancelReservation);
+router.patch('/:id/confirm', validateConfirmReservation, confirmReservation);
 
 export default router;

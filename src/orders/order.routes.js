@@ -1,50 +1,26 @@
 import { Router } from 'express';
 import {
-    createOrder,
-    getOrders,
-    getOrderById,
-    updateOrderStatus,
-    changeOrderStatus
+  createOrder, getMyOrders, getOrdersByRestaurant,
+  getOrderById, updateOrderStatus, cancelOrder, deleteOrder,
 } from './order.controller.js';
-
-import { validateCreateOrder, validateOrderId, validateOrderStatus, validateGetOrders } from '../../middlewares/order-validators.js';
+import {
+  validateCreateOrder,
+  validateOrderStatus,
+  validateGetMyOrders,
+  validateGetOrdersByRestaurant,
+  validateGetOrderById,
+  validateCancelOrder,
+  validateDeleteOrder,
+} from '../../middlewares/order-validators.js';
 
 const router = Router();
 
-router.post(
-    '/create',
-    validateCreateOrder,
-    createOrder
-);
-
-router.get(
-    '/get',
-    validateGetOrders,
-    getOrders
-);
-
-router.get(
-    '/:id',
-    validateOrderId,
-    getOrderById
-);
-
-router.put(
-    '/:id/status',
-    validateOrderStatus,
-    updateOrderStatus
-);
-
-router.put(
-    '/:id/activate',
-    validateOrderId,
-    changeOrderStatus
-);
-
-router.put(
-    '/:id/deactivate',
-    validateOrderId,
-    changeOrderStatus
-);
+router.post('/create', validateCreateOrder, createOrder);
+router.get('/my', validateGetMyOrders, getMyOrders);
+router.get('/restaurant/:id', validateGetOrdersByRestaurant, getOrdersByRestaurant);
+router.get('/:id', validateGetOrderById, getOrderById);
+router.patch('/:id/status', validateOrderStatus, updateOrderStatus);
+router.patch('/:id/cancel', validateCancelOrder, cancelOrder);
+router.delete('/:id', validateDeleteOrder, deleteOrder);
 
 export default router;

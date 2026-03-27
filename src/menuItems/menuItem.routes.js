@@ -1,65 +1,27 @@
-'use strict';
-
 import { Router } from 'express';
-import {
-    createMenuItem,
-    getAllMenuItem,
-    getMenuItemById,
-    updateMenuItem,
-    changeMenuItemStatus
-} from './menuItem.controller.js';
-
 import { uploadMenuItemImage } from '../../middlewares/file-uploader.js';
-import { cleanUploaderFileOnFinish } from '../../middlewares/delete-file-on-error.js';
-
-import {
-    validateCreateMenuItem,
-    validateUpdateMenuItemRequest,
-    validateGetMenuItemById,
-    validateMenuItemStatusChange,
-    validateGetMenuItems
-} from '../../middlewares/menuItem-validators.js';
+import { createMenuItem, getMenuByRestaurant, getMenuItemById, updateMenuItem, toggleAvailability, 
+    deleteMenuItem, uploadMenuItemPhoto, linkIngredients, } from './menuItem.controller.js';
+import { validateGetMenuItemById, validateUpdateMenuItemId, validateToggleAvailabilityId,
+    validateDeleteMenuItemId, validateUploadMenuItemPhotoId, 
+    validateLinkIngredients, } from '../../middlewares/menuItem-validators.js';
 
 const router = Router();
 
-router.post(
-    '/create',
+router.post('/restaurants/:id/menu', createMenuItem);
+router.get('/restaurants/:id/menu', getMenuByRestaurant);
+router.get('/:itemId', validateGetMenuItemById, getMenuItemById);
+router.put('/:itemId', validateUpdateMenuItemId, updateMenuItem);
+router.patch('/:itemId/availability', validateToggleAvailabilityId, toggleAvailability);
+router.delete('/:itemId', validateDeleteMenuItemId, deleteMenuItem);
+
+router.put(
+    '/:itemId/photo',
+    validateUploadMenuItemPhotoId,
     uploadMenuItemImage.single('photo'),
-    cleanUploaderFileOnFinish,
-    validateCreateMenuItem,
-    createMenuItem
+    uploadMenuItemPhoto
 );
 
-router.get(
-    '/get',
-    validateGetMenuItems,
-    getAllMenuItem
-);
-
-router.get(
-    '/:id',
-    validateGetMenuItemById,
-    getMenuItemById
-);
-
-router.put(
-    '/:id',
-    uploadMenuItemImage.single('photo'),
-    cleanUploaderFileOnFinish,
-    validateUpdateMenuItemRequest,
-    updateMenuItem
-);
-
-router.put(
-    '/:id/activate',
-    validateMenuItemStatusChange,
-    changeMenuItemStatus
-);
-
-router.put(
-    '/:id/deactivate',
-    validateMenuItemStatusChange,
-    changeMenuItemStatus
-);
+router.put('/:itemId/ingredients', validateLinkIngredients, linkIngredients);
 
 export default router;
