@@ -2,13 +2,15 @@ import { body, param, query } from 'express-validator';
 import { checkValidators } from './checkValidators.js';
 import { validateJWT } from './validate-JWT.js';
 import { requireRole } from './validate-role.js';
+import { checkEntityRestaurantPermission, checkCreateRestaurantPermission } from './check-restaurant-permission.js';
 import { USER_ROLES } from './roles.js';
 // Validaciones para crear un evento
-export const validateCreateField = [
+export const validateCreateEvent = [
 	validateJWT,
 	requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
+	checkCreateRestaurantPermission('restaurantId'),
 
-	body('restaurant')
+	body('restaurantId')
 		.notEmpty()
 		.withMessage('El restaurante es requerido')
 		.isMongoId()
@@ -27,17 +29,28 @@ export const validateCreateField = [
 		.isLength({ max: 500 })
 		.withMessage('La descripción no puede exceder 500 caracteres'),
 
-	body('eventDate')
+	body('date')
 		.notEmpty()
 		.withMessage('La fecha es requerida')
 		.isISO8601()
 		.withMessage('La fecha debe ser una fecha válida'),
 
+	body('startTime')
+		.notEmpty().withMessage('Hora de inicio requerida')
+		.matches(/^([01]\d|2[0-3]):([0-5]\d)$/).withMessage('Formato HH:MM'),
+
+	body('endTime')
+		.notEmpty().withMessage('Hora de fin requerida')
+		.matches(/^([01]\d|2[0-3]):([0-5]\d)$/).withMessage('Formato HH:MM'),
+
+	body('capacity')
+		.notEmpty().isInt({ min: 1 }).withMessage('Capacidad debe ser número >= 1'),
+
 	checkValidators,
 ];
 
 // Validaciones para actualizar un evento
-export const validateUpdateFieldRequest = [
+export const validateUpdateEvent = [
 	validateJWT,
 	requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
 
@@ -45,10 +58,7 @@ export const validateUpdateFieldRequest = [
 		.isMongoId()
 		.withMessage('ID debe ser un ObjectId válido de MongoDB'),
 
-	body('restaurant')
-		.optional()
-		.isMongoId()
-		.withMessage('El restaurante debe ser un ObjectId válido'),
+	checkEntityRestaurantPermission('Event', 'restaurantId', 'id'),
 
 	body('title')
 		.optional()
@@ -62,7 +72,7 @@ export const validateUpdateFieldRequest = [
 		.isLength({ max: 500 })
 		.withMessage('La descripción no puede exceder 500 caracteres'),
 
-	body('eventDate')
+	body('date')
 		.optional()
 		.isISO8601()
 		.withMessage('La fecha debe ser una fecha válida'),
@@ -71,17 +81,18 @@ export const validateUpdateFieldRequest = [
 ];
 
 // Activar / Desactivar evento (solo ADMIN)
-export const validateFieldStatusChange = [
+export const validateEventStatusChange = [
 	validateJWT,
 	requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
 	param('id')
 		.isMongoId()
 		.withMessage('ID debe ser un ObjectId válido de MongoDB'),
+	checkEntityRestaurantPermission('Event', 'restaurantId', 'id'),
 	checkValidators,
 ];
 
 // Obtener evento por ID
-export const validateGetFieldById = [
+export const validateGetEventById = [
 	param('id')
 		.isMongoId()
 		.withMessage('ID debe ser un ObjectId válido de MongoDB'),
@@ -99,7 +110,7 @@ export const validateGetEvents = [
 		.isInt({ min: 1 })
 		.withMessage('El límite debe ser un número mayor a 0'),
 
-	query('restaurant')
+	query('restaurantId')
 		.optional()
 		.isMongoId()
 		.withMessage('El restaurante debe ser un ObjectId válido'),
@@ -109,6 +120,40 @@ export const validateGetEvents = [
 		.isBoolean()
 		.withMessage('isActive debe ser un booleano'),
 
+	checkValidators,
+];
+
+export const validateRegisterToEvent = [
+	validateJWT,
+	param('id')
+		.isMongoId()
+		.withMessage('ID debe ser un ObjectId válido de MongoDB'),
+	checkValidators,
+];
+
+export const validateUnregisterFromEvent = [
+	validateJWT,
+	param('id')
+		.isMongoId()
+		.withMessage('ID debe ser un ObjectId válido de MongoDB'),
+	checkValidators,
+];
+
+export const validateGetEventRegistrations = [
+	validateJWT,
+	requireRole(USER_ROLES.RESTAURANT_ADMIN, USER_ROLES.PLATFORM_ADMIN),
+	param('id')
+		.isMongoId()
+		.withMessage('ID debe ser un ObjectId válido de MongoDB'),
+	checkValidators,
+];
+
+export const validateCancelEvent = [
+	validateJWT,
+	requireRole(USER_ROLES.RESTAURANT_ADMIN, USER_ROLES.PLATFORM_ADMIN),
+	param('id')
+		.isMongoId()
+		.withMessage('ID debe ser un ObjectId válido de MongoDB'),
 	checkValidators,
 ];
 
