@@ -4,7 +4,6 @@ import mongoose from 'mongoose';
 import PDFDocument from 'pdfkit';
 import ExcelJS from 'exceljs';
 import Order from '../orders/order.model.js';
-import OrderDetail from '../orderDetails/orderDetail.model.js';
 import Reservation from '../reservations/reservation.model.js';
 import MenuItem from '../menuItems/menuItem.model.js';
 import Review from '../reviews/review.model.js';
