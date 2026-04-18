@@ -4,6 +4,8 @@ import {
     normalizeAdminIds, extractToken, validateAdminIds,
     findOrFail, buildFilter, buildSort
 } from '../../helpers/restaurant.helper.js';
+import { ok, fail } from '../../helpers/response.helper.js';
+
 const handleError = (res, error, message, defaultStatus = 500) =>
     fail(res, message, error.statusCode ?? defaultStatus, error.message);
 
