@@ -1,7 +1,56 @@
 import { query, param } from 'express-validator';
 import { checkValidators } from './checkValidators.js';
+import { validateJWT } from './validate-JWT.js';
+import { requireRole } from './validate-role.js';
+import { checkRestaurantPermission } from './check-restaurant-permission.js';
+import { USER_ROLES } from './roles.js';
 
-// Validadores para endpoints de reportes
+export const validateGetRestaurantStats = [
+    validateJWT,
+    requireRole(USER_ROLES.RESTAURANT_ADMIN, USER_ROLES.PLATFORM_ADMIN),
+    param('id')
+        .isMongoId()
+        .withMessage('ID del restaurante debe ser un ObjectId válido'),
+    checkRestaurantPermission('id'),
+    checkValidators,
+];
+
+export const validateGetTopDishes = [
+    validateJWT,
+    requireRole(USER_ROLES.RESTAURANT_ADMIN, USER_ROLES.PLATFORM_ADMIN),
+    param('id')
+        .isMongoId()
+        .withMessage('ID del restaurante debe ser un ObjectId válido'),
+    checkRestaurantPermission('id'),
+    checkValidators,
+];
+
+export const validateGetRevenue = [
+    validateJWT,
+    requireRole(USER_ROLES.RESTAURANT_ADMIN, USER_ROLES.PLATFORM_ADMIN),
+    param('id')
+        .isMongoId()
+        .withMessage('ID del restaurante debe ser un ObjectId válido'),
+    checkRestaurantPermission('id'),
+    checkValidators,
+];
+
+export const validateGetPeakHours = [
+    validateJWT,
+    requireRole(USER_ROLES.RESTAURANT_ADMIN, USER_ROLES.PLATFORM_ADMIN),
+    param('id')
+        .isMongoId()
+        .withMessage('ID del restaurante debe ser un ObjectId válido'),
+    checkRestaurantPermission('id'),
+    checkValidators,
+];
+
+export const validateGetGlobalStats = [
+    validateJWT,
+    requireRole(USER_ROLES.PLATFORM_ADMIN),
+    checkValidators,
+];
+
 export const validateTopSellingParams = [
     query('restaurantId')
         .optional()
@@ -60,7 +109,6 @@ export const validateOrdersByDayParams = [
 ];
 
 export const validateGeneralReportParams = [
-    // No se requieren parámetros adicionales por ahora
     checkValidators,
 ];
 
@@ -70,26 +118,5 @@ export const validateRestaurantReportParams = [
         .withMessage('El ID del restaurante es requerido')
         .isMongoId()
         .withMessage('El ID del restaurante debe ser un ObjectId válido'),
-    checkValidators,
-];
-
-export const validateGetReport = [
-    // Allow optional restaurantId for scoped reports
-    query('restaurantId')
-        .optional()
-        .isMongoId()
-        .withMessage('El ID del restaurante debe ser un ObjectId válido'),
-    checkValidators,
-];
-
-export const validateExportReport = [
-    query('restaurantId')
-        .optional()
-        .isMongoId()
-        .withMessage('El ID del restaurante debe ser un ObjectId válido'),
-    query('format')
-        .optional()
-        .isIn(['pdf', 'excel'])
-        .withMessage('El formato debe ser pdf o excel'),
     checkValidators,
 ];
