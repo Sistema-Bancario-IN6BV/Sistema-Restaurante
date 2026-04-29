@@ -1,29 +1,21 @@
 'use strict';
 
 import Event from './event.model.js';
-import EventRegistration from './EventRegistration.model.js';
+import EventRegistration from './eventRegistration.model.js';
+import { cloudinary } from '../../middlewares/file-uploader.js';
 
 /**
  * SR-190 / SR-192: Crear un nuevo evento gastronómico
  */
 export const createEvent = async (req, res) => {
     try {
-        const data = req.body;
-        
-        const event = new Event(data);
-        await event.save();
-
-        res.status(201).json({
-            success: true,
-            message: 'Evento creado exitosamente',
-            event
-        });
-    } catch (error) {
-        res.status(400).json({
-            success: false,
-            message: 'Error al crear el evento',
-            error: error.message
-        });
+        if (new Date(req.body.date) < new Date()) {
+            return res.status(400).json({ success: false, message: 'La fecha debe ser futura' });
+        }
+        const event = await Event.create(req.body);
+        res.status(201).json({ success: true, data: event });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
 };
 
@@ -32,63 +24,21 @@ export const createEvent = async (req, res) => {
  */
 export const registerToEvent = async (req, res) => {
     try {
-        const { id } = req.params; // ID del Evento
-        const userId = req.user.id; // Extraído del validate-JWT
+        const { restaurantId, from, to, page = 1, limit = 12 } = req.query;
+        const filter = { active: true, status: { $ne: 'CANCELLED' }, date: { $gte: new Date() } };
+        if (restaurantId) filter.restaurantId = restaurantId;
+        if (from) filter.date.$gte = new Date(from);
+        if (to) filter.date.$lte = new Date(to);
 
-        const event = await Event.findById(id);
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const [events, total] = await Promise.all([
+            Event.find(filter).populate('restaurantId', 'name').sort({ date: 1 }).skip(skip).limit(parseInt(limit)),
+            Event.countDocuments(filter),
+        ]);
 
-        if (!event) {
-            return res.status(404).json({
-                success: false,
-                message: 'El evento no existe'
-            });
-        }
-
-        if (event.status !== 'ACTIVO') {
-            return res.status(400).json({
-                success: false,
-                message: 'El evento ya no acepta inscripciones'
-            });
-        }
-
-        // SR-205: Validar cupo máximo (Max Capacity)
-        if (event.currentRegistrations >= event.maxCapacity) {
-            return res.status(400).json({
-                success: false,
-                message: 'Lo sentimos, ya no hay cupos disponibles para este evento'
-            });
-        }
-
-        // SR-206: Registrar inscripción (El índice único previene duplicados)
-        const registration = new EventRegistration({
-            event: id,
-            user: userId
-        });
-
-        await registration.save();
-
-        // Actualizar el contador de inscritos en el evento
-        await Event.findByIdAndUpdate(id, { $inc: { currentRegistrations: 1 } });
-
-        res.status(201).json({
-            success: true,
-            message: 'Inscripción confirmada correctamente'
-        });
-
-    } catch (error) {
-        // Manejo de error por usuario ya inscrito (Duplicate Key Error de MongoDB)
-        if (error.code === 11000) {
-            return res.status(409).json({
-                success: false,
-                message: 'Ya te encuentras inscrito en este evento'
-            });
-        }
-
-        res.status(500).json({
-            success: false,
-            message: 'Error al procesar la inscripción',
-            error: error.message
-        });
+        res.json({ success: true, data: events, pagination: { total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) } });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
 };
 
@@ -97,82 +47,122 @@ export const registerToEvent = async (req, res) => {
  */
 export const cancelRegistration = async (req, res) => {
     try {
-        const { id } = req.params; // ID del Evento
-        const userId = req.user.id;
-
-        const event = await Event.findById(id);
-
-        if (!event) {
-            return res.status(404).json({
-                success: false,
-                message: 'Evento no encontrado'
-            });
-        }
-
-        // SR-207: Validar que falten más de 24 horas para el evento
-        const currentTime = new Date();
-        const eventTime = new Date(event.date);
-        const timeDiff = eventTime - currentTime; // Diferencia en milisegundos
-        const hoursDiff = timeDiff / (1000 * 60 * 60);
-
-        if (hoursDiff < 24) {
-            return res.status(400).json({
-                success: false,
-                message: 'No puedes cancelar tu inscripción faltando menos de 24 horas para el evento'
-            });
-        }
-
-        // Eliminar el registro de inscripción
-        const registrationDeleted = await EventRegistration.findOneAndDelete({
-            event: id,
-            user: userId
-        });
-
-        if (!registrationDeleted) {
-            return res.status(404).json({
-                success: false,
-                message: 'No se encontró una inscripción activa para este usuario en este evento'
-            });
-        }
-
-        // Decrementar el contador de inscritos
-        await Event.findByIdAndUpdate(id, { $inc: { currentRegistrations: -1 } });
-
-        res.status(200).json({
-            success: true,
-            message: 'Inscripción cancelada exitosamente'
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al cancelar la inscripción',
-            error: error.message
-        });
+        const event = await Event.findById(req.params.id).populate('restaurantId', 'name');
+        if (!event) return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+        res.json({ success: true, data: event });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
 };
 
-/**
- * SR-208: Obtener lista de asistentes (Reporte para Admin)
- */
-export const getAttendeesList = async (req, res) => {
+export const updateEvent = async (req, res) => {
     try {
-        const { id } = req.params;
+        const event = await Event.findById(req.params.id);
+        if (!event) return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+        if (event.status === 'CANCELLED') {
+            return res.status(400).json({ success: false, message: 'No se puede editar un evento cancelado' });
+        }
+        Object.assign(event, req.body);
+        await event.save();
+        res.json({ success: true, message: 'Evento actualizado', data: event });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
 
-        const attendees = await EventRegistration.find({ event: id })
-            .populate('user', 'name email profilePicture') // Traer datos específicos del usuario
-            .sort({ createdAt: 1 });
+export const cancelEvent = async (req, res) => {
+    try {
+        const event = await Event.findById(req.params.id);
+        if (!event) return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+        event.status = 'CANCELLED';
+        event.cancelReason = req.body.reason || '';
+        await event.save();
+        res.json({ success: true, message: 'Evento cancelado', data: event });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
 
-        res.status(200).json({
-            success: true,
-            total: attendees.length,
-            attendees
+export const uploadEventCover = async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ success: false, message: 'No se proporcionó imagen' });
+        const event = await Event.findById(req.params.id);
+        if (!event) return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+
+        if (event.coverPublicId) {
+            await cloudinary.uploader.destroy(event.coverPublicId).catch(() => { });
+        } else if (event.coverImage) {
+            const parts = event.coverImage.split('/');
+            const publicId = parts.slice(-2).join('/').replace(/\.[^.]+$/, '');
+            await cloudinary.uploader.destroy(publicId).catch(() => { });
+        }
+
+        event.coverImage = req.file.path || req.file.secure_url;
+        event.coverPublicId = req.file.filename;
+        await event.save();
+        res.json({ success: true, message: 'Imagen actualizada', data: event });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+export const registerToEvent = async (req, res) => {
+    try {
+        const event = await Event.findById(req.params.id);
+        if (!event) return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+        if (event.isFull) {
+            return res.status(400).json({ success: false, message: 'El evento está lleno' });
+        }
+
+        const registration = await EventRegistration.create({
+            eventId: event._id,
+            userId: req.user.id,
         });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al obtener la lista de asistentes',
-            error: error.message
-        });
+
+        await Event.findByIdAndUpdate(event._id, { $inc: { registeredCount: 1 } });
+
+        res.status(201).json({ success: true, message: 'Inscripción exitosa', data: registration });
+    } catch (err) {
+        if (err.code === 11000) {
+            return res.status(409).json({ success: false, message: 'Ya estás inscrito en este evento' });
+        }
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+export const unregisterFromEvent = async (req, res) => {
+    try {
+        const event = await Event.findById(req.params.id);
+        if (!event) return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+
+        // Validar que falten más de 24h
+        const hoursUntil = (new Date(event.date) - new Date()) / (1000 * 60 * 60);
+        if (hoursUntil < 24) {
+            return res.status(400).json({ success: false, message: 'No se puede cancelar inscripción con menos de 24h de anticipación' });
+        }
+
+        const registration = await EventRegistration.findOneAndUpdate(
+            { eventId: req.params.id, userId: req.user.id, status: 'REGISTERED' },
+            { status: 'CANCELLED' },
+            { new: true }
+        );
+        if (!registration) {
+            return res.status(404).json({ success: false, message: 'No tienes inscripción activa' });
+        }
+
+        await Event.findByIdAndUpdate(event._id, { $inc: { registeredCount: -1 } });
+
+        res.json({ success: true, message: 'Inscripción cancelada' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+export const getEventRegistrations = async (req, res) => {
+    try {
+        const registrations = await EventRegistration.find({ eventId: req.params.id });
+        res.json({ success: true, data: registrations });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
 };

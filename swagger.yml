@@ -1,0 +1,4179 @@
+openapi: 3.0.3
+info:
+  title: Sistema Restaurante API
+  version: 1.0.0
+  description: |
+    Documentación de la API para el Sistema de Gestión de Restaurantes.
+
+    ## Características principales:
+    - Gestión de restaurantes y menús
+    - Sistema de pedidos y mesas
+    - Reservas de mesas
+    - Sistema de reseñas y calificaciones
+    - Reportes y estadísticas
+    - Gestión de inventario de ingredientes
+    - Facturación electrónica
+
+    ## Autenticación:
+    La API utiliza tokens JWT para autenticación. El token debe enviarse en el header:
+    - `x-token: <tu_token>` o
+    - `Authorization: Bearer <tu_token>`
+
+    ## Rate Limiting:
+    - 100 requests por cada 15 minutos por dirección IP
+    - Los headers `RateLimit-*` incluyen información del límite
+
+    ## Roles de Usuario:
+    - `CUSTOMER`: Usuario cliente estándar
+    - `RESTAURANT_ADMIN`: Administrador de restaurante (solo puede gestionar su restaurante)
+    - `PLATFORM_ADMIN`: Administrador de plataforma (acceso total)
+
+  contact:
+    name: Soporte Técnico
+    email: soporte@restaurante.com
+
+  x-middlewares:
+    description: |
+      ## Middlewares de la API
+
+      ### Autenticación y Autorización
+
+      #### validateJWT
+      Middleware que valida el token JWT enviado en los headers.
+      - **Headers aceptados:** `x-token` o `Authorization: Bearer <token>`
+      - **Configuración:** JWT_SECRET, JWT_ISSUER, JWT_AUDIENCE (variables de entorno)
+      - **Respuestas de error:**
+        - `401` - Token no proporcionado (MISSING_TOKEN)
+        - `401` - Token expirado (TOKEN_EXPIRED)
+        - `401` - Token inválido (INVALID_TOKEN)
+        - `500` - Error de configuración (JWT_SECRET no definido)
+      - **Agrega a req:** `req.user` con propiedades `id`, `jti`, `iat`, `role`
+
+      #### requireRole
+      Middleware que valida que el usuario tenga uno de los roles permitidos.
+      - **Roles disponibles:**
+        - `CUSTOMER` - Usuario cliente estándar
+        - `RESTAURANT_ADMIN` - Administrador de restaurante (solo gestiona su restaurante)
+        - `PLATFORM_ADMIN` - Administrador de plataforma (acceso total)
+      - **Debe ejecutarse después de validateJWT**
+      - **Respuestas de error:**
+        - `401` - Usuario no autenticado (UNAUTHORIZED)
+        - `403` - No tiene permisos (FORBIDDEN) - incluye `requiredRole` y `yourRole`
+
+      ### Permisos por Restaurante
+
+      #### checkRestaurantPermission
+      Middleware para validar permisos sobre un restaurante específico.
+      - **PLATFORM_ADMIN:** Acceso total
+      - **RESTAURANT_ADMIN:** Solo puede modificar su propio restaurante (valida adminIds o adminId)
+      - **Parámetro:** `idParamName` - nombre del parámetro en la ruta (default: 'id')
+
+      #### checkEntityRestaurantPermission
+      Middleware genérico para validar permisos de entidades relacionadas a restaurantes.
+      - **Parámetros:**
+        - `ModelOrName` - Modelo Mongoose o nombre del modelo
+        - `restaurantIdField` - campo que contiene el restaurantId (default: 'restaurantId')
+        - `idParamName` - nombre del parámetro en la ruta (default: 'id')
+      - **Valida:** Que RESTAURANT_ADMIN solo modifique recursos de su restaurante
+
+      #### checkCreateRestaurantPermission
+      Middleware para validar permisos al crear entidades.
+      - **Parámetro:** `restaurantIdFieldInBody` - campo en el body que contiene restaurantId
+      - **Valida:** Que RESTAURANT_ADMIN solo cree recursos en su restaurante
+
+      ### Rate Limiting
+
+      #### requestLimit
+      Middleware de límite de peticiones por IP.
+      - **Límite:** 100 requests por cada 15 minutos
+      - **Headers:** `RateLimit-*` incluyen información del límite
+      - **Respuesta 429:** Incluye `retryAfter` en segundos
+
+      ### Validación de Archivos
+
+      #### file-uploader (Multer + Cloudinary)
+      Middlewares de subida de imágenes:
+      - `uploadRestaurantImage` - Para restaurantes
+      - `uploadMenuItemImage` - Para platos del menú
+      - `uploadFieldImage` - Para campos generales
+      - **Formatos aceptados:** JPEG, PNG, JPG, WEBP, AVIF
+      - **Tamaño máximo:** 10MB
+      - **Transformación:** Resize a 1000x1000 max (crop: limit)
+
+      #### cleanUploaderFileOnFinish
+      Limpia archivos de Cloudinary si la respuesta es de error (status >= 400).
+
+      #### deleteFileOnError
+      Error handler que elimina archivos de Cloudinary cuando hay error en la cadena de middlewares.
+
+      ### Validadores por Recurso
+
+      Cada recurso tiene su módulo de validadores con express-validator:
+      - `restaurant-validators.js` - validateCreate, validateUpdate, validateGetById
+      - `menuItem-validators.js` - validateCreateMenuItem, validateUpdateMenuItem, validateGetMenuItem, etc.
+      - `order-validators.js` - validateCreateOrder, validateOrderId, validateOrderStatus, etc.
+      - `reservation-validators.js` - validateCreateReservation, validateReservationId, etc.
+      - `table-validators.js` - validateCreateTable, validateUpdateTable, validateGetTables, etc.
+      - `review-validators.js` - validateCreateReview, validateUpdateReview, validateDeleteReview, etc.
+      - `event-validators.js` - validateCreateEvent, validateUpdateEvent, validateEventStatusChange, etc.
+      - `ingredient-validators.js` - validateCreateIngredient, validateUpdateIngredient, validateRestockIngredient, etc.
+      - `invoice-validators.js` - validateCreateInvoice, validateGetByRestaurant, validatePayInvoice, etc.
+
+      ### Manejo de Errores
+
+      #### errorHandler
+      Error handler global que maneja:
+      - `ValidationError` (Mongoose) - 400
+      - `Duplicate field` (código 11000) - 400
+      - `CastError` (ID inválido) - 400
+      - `JsonWebTokenError` - 401
+      - `TokenExpiredError` - 401
+      - Errores con statusCode personalizado
+      - Error interno del servidor - 500
+
+servers:
+  - url: http://localhost:3000/Restaurante/v1
+    description: Servidor local
+  - url: https://api-restaurante.com/Restaurante/v1
+    description: Servidor de producción
+
+tags:
+  - name: Health
+    description: Endpoints para verificar el estado del servicio
+  - name: Auth
+    description: Autenticación y autorización de usuarios
+  - name: Restaurants
+    description: Gestión de restaurantes (crear, listar, actualizar, eliminar)
+  - name: Menu Items
+    description: Gestión del menú y platos del restaurante
+  - name: Orders
+    description: Gestión de pedidos y órdenes de clientes
+  - name: Order Details
+    description: Detalles de items dentro de las órdenes
+  - name: Reservations
+    description: Sistema de reservas de mesas
+  - name: Tables
+    description: Gestión de mesas del restaurante
+  - name: Reviews
+    description: Sistema de reseñas y calificaciones
+  - name: Reports
+    description: Reportes y estadísticas del restaurante
+  - name: Ingredients
+    description: Gestión de ingredientes e inventario
+  - name: Inventory
+    description: Control de inventario y alertas de stock
+  - name: Invoices
+    description: Facturación y pagos
+  - name: Events
+    description: Gestión de eventos del restaurante
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Token JWT obtenido tras iniciar sesión.
+        Puede enviarse en los headers:
+        - `x-token: <token>` o
+        
+        - `Authorization: Bearer <token>`
+
+  requestBodies:
+    # ==================== MULTIPART FORM DATA ====================
+    ImageUpload:
+      description: Imagen para subir (JPEG, PNG, JPG, WEBP, AVIF - Max 10MB)
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              image:
+                type: string
+                format: binary
+                description: Archivo de imagen (JPEG, PNG, JPG, WEBP, AVIF)
+              photo:
+                type: string
+                format: binary
+                description: Archivo de foto del plato
+              cover:
+                type: string
+                format: binary
+                description: Archivo de portada del evento
+              photos:
+                type: array
+                items:
+                  type: string
+                  format: binary
+                maxItems: 3
+                description: Archivos de fotos para reseñas (máximo 3)
+
+  schemas:
+    # ==================== RESTAURANTE ====================
+    Restaurant:
+      type: object
+      required:
+        - name
+        - address
+        - category
+        - adminId
+      properties:
+        _id:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+          example: "Restaurante El Buen Sabor"
+        address:
+          type: object
+          required:
+            - street
+            - city
+            - state
+            - zipCode
+            - country
+          properties:
+            street:
+              type: string
+              example: "Av. Principal 123"
+            city:
+              type: string
+              example: "Ciudad"
+            state:
+              type: string
+              example: "Provincia"
+            zipCode:
+              type: string
+              example: "01001"
+            country:
+              type: string
+              example: "País"
+        phone:
+          type: string
+          example: "+502 1234-5678"
+        email:
+          type: string
+          format: email
+          example: "contacto@buenasabor.com"
+        category:
+          type: string
+          description: |
+            Categoría del restaurante.
+            Valores permitidos:
+            - MEXICANA
+            - ITALIANA
+            - CHINA
+            - JAPONESA
+            - INDIA
+            - AMERICANA
+            - FRANCESA
+            - ESPANOLA
+            - VEGETARIANA
+            - VEGANA
+            - FUSION
+            - INTERNACIONAL
+            - OTRA
+          enum:
+            - MEXICANA
+            - ITALIANA
+            - CHINA
+            - JAPONESA
+            - INDIA
+            - AMERICANA
+            - FRANCESA
+            - ESPANOLA
+            - VEGETARIANA
+            - VEGANA
+            - FUSION
+            - INTERNACIONAL
+            - OTRA
+        avgPrice:
+          type: number
+          minimum: 0
+          example: 150.00
+        schedule:
+          type: string
+          example: "Lun-Dom 8:00 AM - 10:00 PM"
+        rating:
+          type: object
+          properties:
+            average:
+              type: number
+              format: float
+              minimum: 0
+              maximum: 5
+              example: 4.5
+            count:
+              type: integer
+              example: 120
+        photo:
+          type: string
+          nullable: true
+          example: "https://cloudinary.com/restaurant.png"
+        tags:
+          type: array
+          items:
+            type: string
+        adminId:
+          type: string
+          example: "user123"
+        active:
+          type: boolean
+          default: true
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ==================== MENU ITEM ====================
+    MenuItem:
+      type: object
+      required:
+        - restaurantId
+        - name
+        - price
+        - type
+      properties:
+        _id:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        restaurantId:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        name:
+          type: string
+          minLength: 2
+          maxLength: 150
+          example: "Pizza Margarita"
+        description:
+          type: string
+          maxLength: 500
+          example: "Pizza clásica con tomate y mozzarella"
+        price:
+          type: number
+          minimum: 0
+          example: 85.00
+        type:
+          type: string
+          enum:
+            - STARTER
+            - MAIN
+            - DESSERT
+            - DRINK
+            - SIDE
+            - SOUP
+            - SALAD
+            - APPETIZER
+          example: "MAIN"
+        ingredients:
+          type: array
+          items:
+            type: string
+          example: ["Tomate", "Mozzarella", "Albahaca"]
+        allergens:
+          type: array
+          items:
+            type: string
+          example: ["Gluten", "Lácteos"]
+        image:
+          type: string
+          nullable: true
+          example: "https://cloudinary.com/pizza.jpg"
+        available:
+          type: boolean
+          default: true
+        active:
+          type: boolean
+          default: true
+        inventoryIngredients:
+          type: array
+          items:
+            $ref: '#/components/schemas/InventoryIngredient'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    InventoryIngredient:
+      type: object
+      properties:
+        ingredientId:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        quantity:
+          type: number
+          example: 0.5
+        unit:
+          type: string
+          example: "kg"
+
+    # ==================== ORDEN ====================
+    Order:
+      type: object
+      required:
+        - userId
+        - restaurantId
+        - items
+      properties:
+        _id:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        userId:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        restaurantId:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        tableId:
+          type: string
+          nullable: true
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        type:
+          type: string
+          enum:
+            - DINE_IN
+            - DELIVERY
+            - TAKEOUT
+          example: "DINE_IN"
+        status:
+          type: string
+          enum:
+            - PENDING
+            - PREPARING
+            - READY
+            - DELIVERED
+            - CANCELLED
+          default: PENDING
+          example: "PENDING"
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        deliveryAddress:
+          type: object
+          nullable: true
+          properties:
+            street:
+              type: string
+            city:
+              type: string
+            notes:
+              type: string
+        subtotal:
+          type: number
+          minimum: 0
+          default: 0
+          example: 150.00
+        taxRate:
+          type: number
+          default: 0.12
+          example: 0.12
+        taxAmount:
+          type: number
+          minimum: 0
+          default: 0
+          example: 18.00
+        total:
+          type: number
+          minimum: 0
+          default: 0
+          example: 168.00
+        statusHistory:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatusHistory'
+        active:
+          type: boolean
+          default: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    OrderItem:
+      type: object
+      properties:
+        menuItemId:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        name:
+          type: string
+          example: "Pizza Margarita"
+        quantity:
+          type: integer
+          minimum: 1
+          example: 2
+        unitPrice:
+          type: number
+          example: 85.00
+        subtotal:
+          type: number
+          example: 170.00
+        notes:
+          type: string
+          nullable: true
+          example: "Sin cebolla"
+
+    StatusHistory:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "PREPARING"
+        changedBy:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        changedAt:
+          type: string
+          format: date-time
+
+    # ==================== RESERVACIÓN ====================
+    Reservation:
+      type: object
+      required:
+        - userId
+        - restaurantId
+        - tableId
+        - date
+        - time
+        - guests
+      properties:
+        _id:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        userId:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        restaurantId:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        tableId:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        date:
+          type: string
+          format: date-time
+          example: "2026-04-20T19:00:00Z"
+        time:
+          type: string
+          pattern: "^([01]\\d|2[0-3]):([0-5]\\d)$"
+          example: "19:00"
+        guests:
+          type: integer
+          minimum: 1
+          maximum: 20
+          example: 4
+        status:
+          type: string
+          enum:
+            - PENDING
+            - CONFIRMED
+            - CANCELLED
+            - COMPLETED
+          default: PENDING
+          example: "PENDING"
+        notes:
+          type: string
+          maxLength: 500
+          nullable: true
+          example: "Celebración especial"
+        cancelReason:
+          type: string
+          nullable: true
+          example: "El cliente canceló"
+        cancelledAt:
+          type: string
+          format: date-time
+          nullable: true
+        confirmedAt:
+          type: string
+          format: date-time
+          nullable: true
+        active:
+          type: boolean
+          default: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ==================== MESA ====================
+    Table:
+      type: object
+      required:
+        - restaurantId
+        - number
+        - capacity
+      properties:
+        _id:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        restaurantId:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        number:
+          type: integer
+          minimum: 1
+          example: 5
+        capacity:
+          type: integer
+          minimum: 1
+          maximum: 20
+          example: 4
+        location:
+          type: string
+          enum:
+            - INTERIOR
+            - EXTERIOR
+            - TERRACE
+            - PRIVATE_ROOM
+          default: INTERIOR
+          example: "TERRACE"
+        status:
+          type: string
+          enum:
+            - AVAILABLE
+            - OCCUPIED
+            - RESERVED
+          default: AVAILABLE
+          example: "AVAILABLE"
+        description:
+          type: string
+          nullable: true
+          maxLength: 150
+          example: "Mesa con vista al jardín"
+        active:
+          type: boolean
+          default: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ==================== RESEÑA ====================
+    Review:
+      type: object
+      required:
+        - userId
+        - restaurantId
+        - orderId
+        - rating
+      properties:
+        _id:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        userId:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        restaurantId:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        orderId:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 5
+        comment:
+          type: string
+          maxLength: 500
+          example: "Excelente comida y servicio"
+        subRatings:
+          type: object
+          properties:
+            food:
+              type: number
+              minimum: 1
+              maximum: 5
+              example: 5
+            service:
+              type: number
+              minimum: 1
+              maximum: 5
+              example: 4
+            ambiance:
+              type: number
+              minimum: 1
+              maximum: 5
+              example: 4
+            value:
+              type: number
+              minimum: 1
+              maximum: 5
+              example: 5
+        photos:
+          type: array
+          maxItems: 3
+          items:
+            type: string
+          example:
+            - "https://cloudinary.com/review1.jpg"
+            - "https://cloudinary.com/review2.jpg"
+        adminReply:
+          type: string
+          nullable: true
+          maxLength: 500
+          example: "Gracias por su comentario!"
+        visible:
+          type: boolean
+          default: true
+        active:
+          type: boolean
+          default: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ==================== EVENTO ====================
+    Event:
+      type: object
+      required:
+        - restaurantId
+        - title
+        - date
+        - startTime
+        - endTime
+        - capacity
+      properties:
+        _id:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        restaurantId:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        title:
+          type: string
+          minLength: 2
+          maxLength: 150
+          example: "Noche de Pizza"
+        description:
+          type: string
+          maxLength: 500
+          example: "Evento especial con descuentos en pizzas"
+        date:
+          type: string
+          format: date-time
+          example: "2026-05-15T20:00:00Z"
+        startTime:
+          type: string
+          pattern: "^([01]\\d|2[0-3]):([0-5]\\d)$"
+          example: "20:00"
+        endTime:
+          type: string
+          pattern: "^([01]\\d|2[0-3]):([0-5]\\d)$"
+          example: "23:00"
+        capacity:
+          type: integer
+          minimum: 1
+          example: 50
+        registeredCount:
+          type: integer
+          minimum: 0
+          default: 0
+          example: 23
+        price:
+          type: number
+          minimum: 0
+          default: 0
+          example: 100.00
+        status:
+          type: string
+          enum:
+            - UPCOMING
+            - ONGOING
+            - COMPLETED
+            - CANCELLED
+          default: UPCOMING
+          example: "UPCOMING"
+        services:
+          type: array
+          items:
+            type: string
+        coverImage:
+          type: string
+          nullable: true
+          example: "https://cloudinary.com/event.jpg"
+        coverPublicId:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        cancelReason:
+          type: string
+          nullable: true
+        active:
+          type: boolean
+          default: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    EventRegistration:
+      type: object
+      properties:
+        _id:
+          type: string
+        eventId:
+          type: string
+        userId:
+          type: string
+        status:
+          type: string
+          enum:
+            - REGISTERED
+            - CANCELLED
+            - ATTENDED
+        registeredAt:
+          type: string
+          format: date-time
+
+    # ==================== INGREDIENTE ====================
+    Ingredient:
+      type: object
+      required:
+        - restaurantId
+        - name
+        - unit
+        - currentStock
+        - minStock
+      properties:
+        _id:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        restaurantId:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Tomate"
+        unit:
+          type: string
+          enum:
+            - KG
+            - G
+            - LT
+            - ML
+            - UNIT
+            - DOZEN
+            - POUND
+            - OZ
+          example: "KG"
+        currentStock:
+          type: number
+          minimum: 0
+          example: 10.5
+        minStock:
+          type: number
+          minimum: 0
+          example: 5.0
+        costPerUnit:
+          type: number
+          minimum: 0
+          default: 0
+          example: 15.00
+        supplier:
+          type: string
+          nullable: true
+          example: "Proveedor ABC"
+        lowStockAlert:
+          type: boolean
+          default: false
+          description: Se activa automáticamente cuando currentStock < minStock
+        lastRestockedAt:
+          type: string
+          format: date-time
+          nullable: true
+        active:
+          type: boolean
+          default: true
+        isLowStock:
+          type: boolean
+          readOnly: true
+          description: Campo virtual que indica si el stock está bajo
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ==================== FACTURA ====================
+    Invoice:
+      type: object
+      required:
+        - orderId
+        - userId
+        - restaurantId
+      properties:
+        _id:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        invoiceNumber:
+          type: string
+          description: Auto-generado con formato FAC-YYYY-NNNNN
+          example: "FAC-2026-00001"
+        orderId:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+          description: Único por orden
+        userId:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        restaurantId:
+          type: string
+          example: "65a1b2c3d4e5f6a7b8c9d0e1"
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              quantity:
+                type: number
+              unitPrice:
+                type: number
+              subtotal:
+                type: number
+        subtotal:
+          type: number
+          minimum: 0
+          example: 150.00
+        taxRate:
+          type: number
+          default: 0.12
+          example: 0.12
+        taxAmount:
+          type: number
+          minimum: 0
+          example: 18.00
+        total:
+          type: number
+          minimum: 0
+          example: 168.00
+        status:
+          type: string
+          enum:
+            - PENDING
+            - PAID
+            - CANCELLED
+          default: PENDING
+          example: "PENDING"
+        paymentMethod:
+          type: string
+          enum:
+            - CASH
+            - CARD
+            - TRANSFER
+          nullable: true
+          example: "CARD"
+        issuedAt:
+          type: string
+          format: date-time
+          default: Date.now
+        paidAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ==================== REPORTES ====================
+    ReportStats:
+      type: object
+      properties:
+        orders:
+          type: array
+          items:
+            type: object
+            properties:
+              _id:
+                type: string
+              count:
+                type: integer
+        revenue:
+          type: object
+          properties:
+            totalRevenue:
+              type: number
+            invoiceCount:
+              type: integer
+        reviews:
+          type: object
+          properties:
+            avgRating:
+              type: number
+            count:
+              type: integer
+        reservations:
+          type: array
+          items:
+            type: object
+            properties:
+              _id:
+                type: string
+              count:
+                type: integer
+
+    # ==================== RESPUESTAS ====================
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Operación completada correctamente"
+        data:
+          type: object
+          additionalProperties: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Error de validación"
+        errors:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    PaginationInfo:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 100
+        page:
+          type: integer
+          example: 1
+        pages:
+          type: integer
+          example: 10
+        limit:
+          type: integer
+          example: 10
+
+  parameters:
+    # ==================== HEADERS ====================
+    XTokenHeader:
+      name: x-token
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Token JWT de autenticación (alternativo a Authorization Bearer)
+      example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    AuthorizationHeader:
+      name: Authorization
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Token JWT con prefijo Bearer (alternativo a x-token)
+      example: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    # ==================== PARAMETROS COMUNES ====================
+    id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: ID del recurso
+      example: "65a1b2c3d4e5f6a7b8c9d0e1"
+
+    restaurantId:
+      name: restaurantId
+      in: path
+      required: true
+      schema:
+        type: string
+      description: ID del restaurante
+      example: "65a1b2c3d4e5f6a7b8c9d0e1"
+
+    page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 1
+        minimum: 1
+      description: Número de página para paginación
+      example: 1
+
+    limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 10
+        minimum: 1
+        maximum: 100
+      description: Cantidad de registros por página
+      example: 10
+
+    sort:
+      name: sort
+      in: query
+      required: false
+      schema:
+        type: string
+        description: Campo y direccion para ordenamiento
+        example: "-createdAt"
+
+    status:
+      name: status
+      in: query
+      required: false
+      schema:
+        type: string
+        description: Filtrar por estado
+        example: "PENDING"
+
+    from:
+      name: from
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date
+        description: Fecha de inicio para filtrar
+        example: "2026-01-01"
+
+    to:
+      name: to
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date
+        description: Fecha de fin para filtrar
+        example: "2026-12-31"
+
+  responses:
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Recurso no encontrado"
+
+    Unauthorized:
+      description: No autorizado - Token inválido o faltante
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Token no proporcionado o inválido"
+
+    Forbidden:
+      description: Prohibido - No tiene permisos suficientes
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "No tienes permisos para realizar esta acción"
+
+    BadRequest:
+      description: Solicitud inválida - Error de validación
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Error de validación"
+            errors:
+              - field: "email"
+                message: "El email es requerido"
+
+    InternalError:
+      description: Error interno del servidor
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            message: "Error interno del servidor"
+
+paths:
+  # ==================== HEALTH ====================
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Verificar estado del servicio
+      description: Endpoint para verificar que el servicio esté funcionando correctamente
+      operationId: getHealth
+      responses:
+        '200':
+          description: Servicio funcionando correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              example:
+                success: true
+                message: "Servicio funcionando correctamente"
+                data:
+                  status: "OK"
+                  timestamp: "2026-04-16T10:00:00Z"
+
+  # ==================== RESTAURANTES ====================
+  /restaurants/create:
+    post:
+      tags:
+        - Restaurants
+      summary: Crear un nuevo restaurante
+      description: Crea un nuevo restaurante en el sistema
+      operationId: createRestaurant
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - location
+                - phone
+              properties:
+                name:
+                  type: string
+                  example: "Restaurante El Buen Sabor"
+                description:
+                  type: string
+                  example: "Restaurante de comida internacional"
+                location:
+                  type: string
+                  example: "Av. Principal 123, Ciudad"
+                phone:
+                  type: string
+                  example: "+502 1234-5678"
+                adminIds:
+                  type: array
+                  items:
+                    type: string
+                category:
+                  type: string
+                  example: "Internacional"
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                location:
+                  type: string
+                phone:
+                  type: string
+                image:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Restaurante creado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Restaurant'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /restaurants/get:
+    get:
+      tags:
+        - Restaurants
+      summary: Obtener lista de restaurantes
+      description: Obtiene una lista paginada de restaurantes con filtros opcionales
+      operationId: getRestaurants
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/sort'
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filtrar por categoría
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Buscar por nombre o ubicación
+      responses:
+        '200':
+          description: Lista de restaurantes obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Restaurant'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /restaurants/{id}:
+    get:
+      tags:
+        - Restaurants
+      summary: Obtener restaurante por ID
+      description: Obtiene los detalles de un restaurante específico
+      operationId: getRestaurantById
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Restaurante encontrado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Restaurant'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Restaurants
+      summary: Actualizar restaurante
+      description: Actualiza los datos de un restaurante existente
+      operationId: updateRestaurant
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                location:
+                  type: string
+                phone:
+                  type: string
+                category:
+                  type: string
+      responses:
+        '200':
+          description: Restaurante actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Restaurant'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Restaurants
+      summary: Eliminar restaurante (soft delete)
+      description: Marca un restaurante como inactivo (eliminación lógica)
+      operationId: deleteRestaurant
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Restaurante eliminado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Restaurant'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /restaurants/{id}/cover:
+    post:
+      tags:
+        - Restaurants
+      summary: Subir portada del restaurante
+      description: Sube o actualiza la imagen de portada de un restaurante
+      operationId: uploadRestaurantCover
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Portada actualizada exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Restaurant'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== MENU ITEMS ====================
+  /restaurants/{id}/menu:
+    post:
+      tags:
+        - Menu Items
+      summary: Crear nuevo plato del menú
+      description: Crea un nuevo item en el menú de un restaurante
+      operationId: createMenuItem
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - price
+                - type
+              properties:
+                name:
+                  type: string
+                  maxLength: 150
+                  example: "Pizza Margarita"
+                description:
+                  type: string
+                  maxLength: 500
+                  example: "Pizza clásica con tomate y mozzarella"
+                price:
+                  type: number
+                  minimum: 0
+                  example: 85.00
+                type:
+                  type: string
+                  enum:
+                    - ENTRADA
+                    - PLATO_FUERTE
+                    - POSTRE
+                    - BEBIDA
+                  example: "PLATO_FUERTE"
+                ingredients:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/InventoryIngredient'
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                price:
+                  type: number
+                type:
+                  type: string
+                ingredients:
+                  type: string
+                  description: JSON string del array de ingredientes
+                photo:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Plato creado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MenuItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    get:
+      tags:
+        - Menu Items
+      summary: Obtener menú del restaurante
+      description: Obtiene todos los items del menú de un restaurante agrupados por tipo
+      operationId: getMenuByRestaurant
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Menú obtenido exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        additionalProperties:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/MenuItem'
+                        example:
+                          ENTRADA:
+                            - _id: "65a1b2c3d4e5f6a7b8c9d0e1"
+                              name: "Sopa del día"
+                              price: 35
+                          PLATO_FUERTE:
+                            - _id: "65a1b2c3d4e5f6g7h8i9j0k2"
+                              name: "Pizza Margarita"
+                              price: 85
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /menu-items/{itemId}:
+    get:
+      tags:
+        - Menu Items
+      summary: Obtener plato por ID
+      description: Obtiene los detalles de un plato específico
+      operationId: getMenuItemById
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Plato encontrado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MenuItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Menu Items
+      summary: Actualizar plato
+      description: Actualiza los datos de un plato existente
+      operationId: updateMenuItem
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                price:
+                  type: number
+                type:
+                  type: string
+                ingredients:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/InventoryIngredient'
+      responses:
+        '200':
+          description: Plato actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MenuItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Menu Items
+      summary: Eliminar plato (soft delete)
+      description: Marca un plato como inactivo
+      operationId: deleteMenuItem
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Plato eliminado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              example:
+                success: true
+                message: "Plato eliminado"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /menu-items/{itemId}/availability:
+    patch:
+      tags:
+        - Menu Items
+      summary: Cambiar disponibilidad de plato
+      description: Alterna el estado de disponibilidad de un plato
+      operationId: toggleMenuItemAvailability
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Disponibilidad actualizada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MenuItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /menu-items/{itemId}/photo:
+    put:
+      tags:
+        - Menu Items
+      summary: Subir foto del plato
+      description: Sube o actualiza la foto de un plato
+      operationId: uploadMenuItemPhoto
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                photo:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Foto actualizada exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MenuItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /menu-items/{itemId}/ingredients:
+    put:
+      tags:
+        - Menu Items
+      summary: Vincular ingredientes al plato
+      description: Asocia ingredientes y sus cantidades a un plato para control de inventario
+      operationId: linkIngredients
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ingredients
+              properties:
+                ingredients:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/InventoryIngredient'
+      responses:
+        '200':
+          description: Ingredientes vinculados exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MenuItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== ÓRDENES ====================
+  /orders/create:
+    post:
+      tags:
+        - Orders
+      summary: Crear nueva orden
+      description: Crea una nueva orden de comida
+      operationId: createOrder
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - restaurantId
+                - items
+              properties:
+                restaurantId:
+                  type: string
+                  example: "65a1b2c3d4e5f6a7b8c9d0e1"
+                type:
+                  type: string
+                  enum:
+                    - DINE_IN
+                    - DELIVERY
+                    - TAKEOUT
+                  default: DELIVERY
+                tableId:
+                  type: string
+                  nullable: true
+                  description: Requerido para tipo DINE_IN
+                deliveryAddress:
+                  type: object
+                  nullable: true
+                  description: Requerido para tipo DELIVERY
+                  properties:
+                    street:
+                      type: string
+                    city:
+                      type: string
+                    zipCode:
+                      type: string
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - menuItem
+                      - quantity
+                    properties:
+                      menuItem:
+                        type: string
+                        description: ID del menú item
+                      quantity:
+                        type: integer
+                        minimum: 1
+                      notes:
+                        type: string
+                        nullable: true
+                status:
+                  type: string
+                  enum:
+                    - PENDING
+                    - PREPARING
+                    - READY
+                    - DELIVERED
+                    - CANCELLED
+                  default: PENDING
+                  example: "PENDING"
+      responses:
+        '201':
+          description: Orden creada exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /orders/my:
+    get:
+      tags:
+        - Orders
+      summary: Obtener mis órdenes
+      description: Obtiene las órdenes del usuario autenticado
+      operationId: getMyOrders
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - PENDING
+              - PREPARING
+              - READY
+              - DELIVERED
+              - CANCELLED
+      responses:
+        '200':
+          description: Órdenes obtenidas exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Order'
+                      pagination:
+                        $ref: '#/components/schemas/PaginationInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /orders/restaurant/{id}:
+    get:
+      tags:
+        - Orders
+      summary: Obtener órdenes por restaurante
+      description: Obtiene todas las órdenes de un restaurante específico
+      operationId: getOrdersByRestaurant
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/status'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: Órdenes obtenidas exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Order'
+                      pagination:
+                        $ref: '#/components/schemas/PaginationInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /orders/{id}:
+    get:
+      tags:
+        - Orders
+      summary: Obtener orden por ID
+      description: Obtiene los detalles de una orden específica
+      operationId: getOrderById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Orden encontrada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Orders
+      summary: Eliminar orden (soft delete)
+      description: Marca una orden como inactiva
+      operationId: deleteOrder
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Orden eliminada exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /orders/{id}/status:
+    patch:
+      tags:
+        - Orders
+      summary: Actualizar estado de orden
+      description: Cambia el estado de una orden siguiendo la máquina de estados
+      operationId: updateOrderStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - PENDING
+                    - PREPARING
+                    - READY
+                    - DELIVERED
+                    - CANCELLED
+      responses:
+        '200':
+          description: Estado actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Order'
+        '400':
+          description: Transición de estado no válida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /orders/{id}/cancel:
+    patch:
+      tags:
+        - Orders
+      summary: Cancelar orden
+      description: Cancela una orden (solo permitido para órdenes en estado PENDING)
+      operationId: cancelOrder
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Orden cancelada exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Order'
+        '400':
+          description: Solo se pueden cancelar órdenes pendientes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== RESERVACIONES ====================
+  /reservations/create:
+    post:
+      tags:
+        - Reservations
+      summary: Crear nueva reservación
+      description: Crea una nueva reservación de mesa
+      operationId: createReservation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - restaurantId
+                - tableId
+                - date
+                - time
+                - guests
+              properties:
+                restaurantId:
+                  type: string
+                  example: "65a1b2c3d4e5f6a7b8c9d0e1"
+                tableId:
+                  type: string
+                  example: "65a1b2c3d4e5f6a7b8c9d0e1"
+                date:
+                  type: string
+                  format: date
+                  example: "2026-04-20"
+                time:
+                  type: string
+                  pattern: "^\\d{2}:\\d{2}$"
+                  example: "19:00"
+                guests:
+                  type: integer
+                  minimum: 1
+                  example: 4
+                notes:
+                  type: string
+                  example: "Celebración especial"
+      responses:
+        '201':
+          description: Reservación creada exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Reservation'
+        '400':
+          description: Error de validación (fecha inválida, capacidad excedida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Conflicto - mesa ya reservada en ese horario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /reservations/my:
+    get:
+      tags:
+        - Reservations
+      summary: Obtener mis reservaciones
+      description: Obtiene las reservaciones del usuario autenticado
+      operationId: getMyReservations
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/status'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: Reservaciones obtenidas exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Reservation'
+                      pagination:
+                        $ref: '#/components/schemas/PaginationInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /reservations/restaurant/{id}:
+    get:
+      tags:
+        - Reservations
+      summary: Obtener reservaciones por restaurante
+      description: Obtiene todas las reservaciones de un restaurante
+      operationId: getReservationsByRestaurant
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/status'
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: Reservaciones obtenidas exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Reservation'
+                      pagination:
+                        $ref: '#/components/schemas/PaginationInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /reservations/{id}:
+    get:
+      tags:
+        - Reservations
+      summary: Obtener reservación por ID
+      description: Obtiene los detalles de una reservación específica
+      operationId: getReservationById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Reservación encontrada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Reservation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Reservations
+      summary: Actualizar reservación
+      description: Actualiza los datos de una reservación (solo PENDING)
+      operationId: updateReservation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                date:
+                  type: string
+                  format: date
+                time:
+                  type: string
+                  pattern: "^\\d{2}:\\d{2}$"
+                guests:
+                  type: integer
+                  minimum: 1
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Reservación actualizada exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Reservation'
+        '400':
+          description: Solo se pueden modificar reservaciones pendientes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Conflicto - nueva fecha/hora no disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /reservations/{id}/cancel:
+    patch:
+      tags:
+        - Reservations
+      summary: Cancelar reservación
+      description: Cancela una reservación existente
+      operationId: cancelReservation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Reservación cancelada exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Reservation'
+        '400':
+          description: Ya está cancelada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /reservations/{id}/confirm:
+    patch:
+      tags:
+        - Reservations
+      summary: Confirmar reservación
+      description: Confirma una reservación pendiente
+      operationId: confirmReservation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Reservación confirmada exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Reservation'
+        '400':
+          description: Solo se pueden confirmar reservaciones pendientes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== MESAS ====================
+  /tables/restaurants/{id}:
+    post:
+      tags:
+        - Tables
+      summary: Crear nueva mesa
+      description: Crea una nueva mesa en un restaurante
+      operationId: createTable
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID del restaurante
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tableNumber
+                - capacity
+              properties:
+                tableNumber:
+                  type: integer
+                  example: 5
+                capacity:
+                  type: integer
+                  minimum: 1
+                  example: 4
+                location:
+                  type: string
+                  example: "Terraza"
+                description:
+                  type: string
+                  example: "Mesa con vista al jardín"
+      responses:
+        '201':
+          description: Mesa creada exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      table:
+                        $ref: '#/components/schemas/Table'
+        '400':
+          description: Ya existe una mesa con ese número
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    get:
+      tags:
+        - Tables
+      summary: Obtener mesas de restaurante
+      description: Obtiene todas las mesas de un restaurante
+      operationId: getRestaurantTables
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID del restaurante
+        - name: location
+          in: query
+          schema:
+            type: string
+          description: Filtrar por ubicación
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - AVAILABLE
+              - OCCUPIED
+              - RESERVED
+              - MAINTENANCE
+      responses:
+        '200':
+          description: Mesas obtenidas exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      total:
+                        type: integer
+                      tables:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Table'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tables/{id}:
+    get:
+      tags:
+        - Tables
+      summary: Obtener mesa por ID
+      description: Obtiene los detalles de una mesa específica
+      operationId: getTableById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Mesa encontrada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      table:
+                        $ref: '#/components/schemas/Table'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Tables
+      summary: Actualizar mesa
+      description: Actualiza los datos de una mesa
+      operationId: updateTable
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                capacity:
+                  type: integer
+                location:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Mesa actualizada exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      updatedTable:
+                        $ref: '#/components/schemas/Table'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tables/{id}/status:
+    patch:
+      tags:
+        - Tables
+      summary: Cambiar estado de mesa
+      description: Cambia el estado de ocupación de una mesa
+      operationId: changeTableStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - AVAILABLE
+                    - OCCUPIED
+                    - RESERVED
+                    - MAINTENANCE
+      responses:
+        '200':
+          description: Estado actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      table:
+                        $ref: '#/components/schemas/Table'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tables/activate/{id}:
+    put:
+      tags:
+        - Tables
+      summary: Activar mesa
+      description: Activa una mesa previamente desactivada
+      operationId: activateTable
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Mesa activada exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Table'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tables/deactivate/{id}:
+    put:
+      tags:
+        - Tables
+      summary: Desactivar mesa
+      description: Desactiva una mesa (soft delete)
+      operationId: deactivateTable
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Mesa desactivada exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Table'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== RESEÑAS ====================
+  /reviews:
+    post:
+      tags:
+        - Reviews
+      summary: Crear nueva reseña
+      description: Crea una nueva reseña para un restaurante (solo órdenes entregadas)
+      operationId: createReview
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - orderId
+                - restaurantId
+                - rating
+              properties:
+                orderId:
+                  type: string
+                  description: ID de la orden entregada
+                restaurantId:
+                  type: string
+                rating:
+                  type: number
+                  minimum: 1
+                  maximum: 5
+                  example: 4.5
+                comment:
+                  type: string
+                  example: "Excelente comida y servicio"
+                subRatings:
+                  type: object
+                  properties:
+                    food:
+                      type: number
+                    service:
+                      type: number
+                    ambiance:
+                      type: number
+                photos:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  maxItems: 3
+      responses:
+        '201':
+          description: Reseña creada exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Review'
+        '400':
+          description: Solo se pueden reseñar órdenes entregadas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Ya existe una reseña para esta orden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /reviews/restaurant/{id}:
+    get:
+      tags:
+        - Reviews
+      summary: Obtener reseñas por restaurante
+      description: Obtiene todas las reseñas visibles de un restaurante
+      operationId: getReviewsByRestaurant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID del restaurante
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+        - name: sort
+          in: query
+          schema:
+            type: string
+            default: "-createdAt"
+          description: Campo para ordenamiento
+      responses:
+        '200':
+          description: Reseñas obtenidas exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Review'
+                      rating:
+                        type: object
+                        properties:
+                          average:
+                            type: number
+                          count:
+                            type: integer
+                      distribution:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            _id:
+                              type: integer
+                            count:
+                              type: integer
+                      pagination:
+                        $ref: '#/components/schemas/PaginationInfo'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /reviews/{id}:
+    get:
+      tags:
+        - Reviews
+      summary: Obtener reseña por ID
+      description: Obtiene los detalles de una reseña específica
+      operationId: getReviewById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Reseña encontrada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Review'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Reviews
+      summary: Eliminar reseña (soft delete)
+      description: Marca una reseña como inactiva (solo autor o admin)
+      operationId: deleteReview
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Reseña eliminada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              example:
+                success: true
+                message: "Reseña eliminada"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /reviews/{id}/reply:
+    patch:
+      tags:
+        - Reviews
+      summary: Responder a reseña
+      description: Agrega una respuesta del administrador a una reseña
+      operationId: replyToReview
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reply
+              properties:
+                reply:
+                  type: string
+                  example: "Gracias por su comentario, esperamos verlo pronto"
+      responses:
+        '200':
+          description: Respuesta agregada exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Review'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== EVENTOS ====================
+  /events:
+    get:
+      tags:
+        - Events
+      summary: Obtener eventos
+      description: Obtiene una lista de eventos activos
+      operationId: getEvents
+      parameters:
+        - name: restaurantId
+          in: query
+          schema:
+            type: string
+          description: Filtrar por restaurante
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Fecha desde
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Fecha hasta
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: Eventos obtenidos exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Event'
+                      pagination:
+                        $ref: '#/components/schemas/PaginationInfo'
+
+    post:
+      tags:
+        - Events
+      summary: Crear nuevo evento
+      description: Crea un nuevo evento
+      operationId: createEvent
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - restaurantId
+                - title
+                - date
+              properties:
+                restaurantId:
+                  type: string
+                title:
+                  type: string
+                  example: "Noche de Pizza"
+                description:
+                  type: string
+                  example: "Evento especial con descuentos"
+                date:
+                  type: string
+                  format: date-time
+                maxAttendees:
+                  type: integer
+      responses:
+        '201':
+          description: Evento creado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Event'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /events/{id}:
+    get:
+      tags:
+        - Events
+      summary: Obtener evento por ID
+      description: Obtiene los detalles de un evento específico
+      operationId: getEventById
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Evento encontrado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Event'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Events
+      summary: Actualizar evento
+      description: Actualiza los datos de un evento
+      operationId: updateEvent
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                date:
+                  type: string
+                  format: date-time
+                maxAttendees:
+                  type: integer
+      responses:
+        '200':
+          description: Evento actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Event'
+        '400':
+          description: No se puede editar un evento cancelado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags:
+        - Events
+      summary: Cancelar evento
+      description: Cancela un evento existente
+      operationId: cancelEvent
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Evento cancelado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Event'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /events/{id}/cover:
+    put:
+      tags:
+        - Events
+      summary: Subir portada de evento
+      description: Sube o actualiza la imagen de portada de un evento
+      operationId: uploadEventCover
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                cover:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Portada actualizada exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Event'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /events/{id}/register:
+    post:
+      tags:
+        - Events
+      summary: Registrarse en evento
+      description: Registra al usuario autenticado en un evento
+      operationId: registerToEvent
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '201':
+          description: Registro exitoso
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/EventRegistration'
+        '400':
+          description: El evento está lleno
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Ya estás inscrito en este evento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Events
+      summary: Cancelar registro en evento
+      description: Cancela la inscripción del usuario en un evento
+      operationId: unregisterFromEvent
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Inscripción cancelada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '400':
+          description: Menos de 24h de anticipación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /events/{id}/registrations:
+    get:
+      tags:
+        - Events
+      summary: Obtener registros de evento
+      description: Obtiene todas las inscripciones de un evento
+      operationId: getEventRegistrations
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Registros obtenidos exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/EventRegistration'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== INGREDIENTES / INVENTARIO ====================
+  /ingredients:
+    post:
+      tags:
+        - Ingredients
+      summary: Crear nuevo ingrediente
+      description: Crea un nuevo ingrediente en el inventario
+      operationId: createIngredient
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - restaurantId
+                - name
+                - currentStock
+                - unit
+              properties:
+                restaurantId:
+                  type: string
+                name:
+                  type: string
+                  example: "Tomate"
+                description:
+                  type: string
+                category:
+                  type: string
+                  enum:
+                    - VERDURA
+                    - FRUTA
+                    - CARNE
+                    - PESCADO
+                    - LACTEO
+                    - GRANO
+                    - ESPECIA
+                    - OTRO
+                currentStock:
+                  type: number
+                  example: 10.5
+                minStock:
+                  type: number
+                  example: 5.0
+                maxStock:
+                  type: number
+                  example: 50.0
+                unit:
+                  type: string
+                  example: "kg"
+                costPerUnit:
+                  type: number
+                  example: 15.00
+      responses:
+        '201':
+          description: Ingrediente creado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Ingredient'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /ingredients/restaurant/{restaurantId}:
+    get:
+      tags:
+        - Ingredients
+      summary: Obtener inventario por restaurante
+      description: Obtiene todos los ingredientes de un restaurante
+      operationId: getIngredientsByRestaurant
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: restaurantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filtrar por categoría
+        - name: lowStock
+          in: query
+          schema:
+            type: boolean
+          description: Solo ingredientes con stock bajo
+      responses:
+        '200':
+          description: Ingredientes obtenidos exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Ingredient'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /ingredients/restaurant/{restaurantId}/alerts:
+    get:
+      tags:
+        - Ingredients
+      summary: Obtener alertas de stock bajo
+      description: Obtiene ingredientes con stock por debajo del mínimo
+      operationId: getLowStockAlerts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: restaurantId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Alertas obtenidas exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Ingredient'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /ingredients/{id}:
+    get:
+      tags:
+        - Ingredients
+      summary: Obtener ingrediente por ID
+      description: Obtiene los detalles de un ingrediente específico
+      operationId: getIngredientById
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Ingrediente encontrado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Ingredient'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Ingredients
+      summary: Actualizar ingrediente
+      description: Actualiza los datos de un ingrediente
+      operationId: updateIngredient
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                category:
+                  type: string
+                minStock:
+                  type: number
+                maxStock:
+                  type: number
+                costPerUnit:
+                  type: number
+      responses:
+        '200':
+          description: Ingrediente actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Ingredient'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Ingredients
+      summary: Eliminar ingrediente (soft delete)
+      description: Marca un ingrediente como inactivo
+      operationId: deleteIngredient
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Ingrediente eliminado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /ingredients/{id}/restock:
+    patch:
+      tags:
+        - Ingredients
+      summary: Reabastecer ingrediente
+      description: Agrega stock a un ingrediente existente
+      operationId: restockIngredient
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - quantity
+              properties:
+                quantity:
+                  type: number
+                  minimum: 0.01
+                  example: 5.0
+                notes:
+                  type: string
+                  example: "Compra semanal al proveedor"
+      responses:
+        '200':
+          description: Stock actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Ingredient'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== FACTURAS ====================
+  /invoices:
+    post:
+      tags:
+        - Invoices
+      summary: Crear nueva factura
+      description: Crea una nueva factura desde una orden
+      operationId: createInvoice
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - orderId
+              properties:
+                orderId:
+                  type: string
+      responses:
+        '201':
+          description: Factura creada exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Invoice'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /invoices/my:
+    get:
+      tags:
+        - Invoices
+      summary: Obtener mis facturas
+      description: Obtiene las facturas del usuario autenticado
+      operationId: getMyInvoices
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/status'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: Facturas obtenidas exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Invoice'
+                      pagination:
+                        $ref: '#/components/schemas/PaginationInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /invoices/order/{orderId}:
+    get:
+      tags:
+        - Invoices
+      summary: Obtener factura por orden
+      description: Obtiene la factura asociada a una orden específica
+      operationId: getInvoiceByOrder
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Factura encontrada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Invoice'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /invoices/restaurant/{id}:
+    get:
+      tags:
+        - Invoices
+      summary: Obtener facturas por restaurante
+      description: Obtiene todas las facturas de un restaurante
+      operationId: getInvoicesByRestaurant
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/status'
+        - $ref: '#/components/parameters/from'
+        - $ref: '#/components/parameters/to'
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: Facturas obtenidas exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Invoice'
+                      pagination:
+                        $ref: '#/components/schemas/PaginationInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /invoices/{id}/pay:
+    patch:
+      tags:
+        - Invoices
+      summary: Pagar factura
+      description: Marca una factura como pagada
+      operationId: payInvoice
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                paymentMethod:
+                  type: string
+                  enum:
+                    - CASH
+                    - CREDIT_CARD
+                    - DEBIT_CARD
+                    - TRANSFER
+      responses:
+        '200':
+          description: Factura pagada exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Invoice'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /invoices/{id}:
+    delete:
+      tags:
+        - Invoices
+      summary: Eliminar factura (soft delete)
+      description: Marca una factura como inactiva
+      operationId: deleteInvoice
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Factura eliminada exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== REPORTES ====================
+  /reports/restaurant/{id}/stats:
+    get:
+      tags:
+        - Reports
+      summary: Obtener estadísticas del restaurante
+      description: Obtiene estadísticas completas de un restaurante (órdenes, ingresos, reviews, reservas)
+      operationId: getRestaurantStats
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/from'
+        - $ref: '#/components/parameters/to'
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum:
+              - json
+              - pdf
+              - excel
+            default: json
+          description: Formato de salida
+      responses:
+        '200':
+          description: Estadísticas obtenidas exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ReportStats'
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /reports/restaurant/{id}/top-dishes:
+    get:
+      tags:
+        - Reports
+      summary: Obtener platos más vendidos
+      description: Obtiene el ranking de platos más vendidos de un restaurante
+      operationId: getTopDishes
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum:
+              - json
+              - pdf
+              - excel
+            default: json
+      responses:
+        '200':
+          description: Top platos obtenidos exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            _id:
+                              type: string
+                            name:
+                              type: string
+                            totalSold:
+                              type: integer
+                            totalRevenue:
+                              type: number
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /reports/restaurant/{id}/revenue:
+    get:
+      tags:
+        - Reports
+      summary: Obtener reporte de ingresos
+      description: Obtiene el reporte de ingresos por período (diario, semanal, mensual)
+      operationId: getRevenue
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum:
+              - daily
+              - weekly
+              - monthly
+            default: daily
+        - $ref: '#/components/parameters/from'
+        - $ref: '#/components/parameters/to'
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum:
+              - json
+              - pdf
+              - excel
+            default: json
+      responses:
+        '200':
+          description: Reporte de ingresos obtenido exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            _id:
+                              type: string
+                              description: Período (YYYY-MM-DD, YYYY-Www, o YYYY-MM)
+                            revenue:
+                              type: number
+                            orders:
+                              type: integer
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /reports/restaurant/{id}/peak-hours:
+    get:
+      tags:
+        - Reports
+      summary: Obtener horas pico
+      description: Obtiene el análisis de horas pico de un restaurante
+      operationId: getPeakHours
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum:
+              - json
+              - pdf
+              - excel
+            default: json
+      responses:
+        '200':
+          description: Horas pico obtenidas exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            _id:
+                              type: integer
+                              description: Hora (0-23)
+                            orderCount:
+                              type: integer
+                            avgTotal:
+                              type: number
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /reports/global:
+    get:
+      tags:
+        - Reports
+      summary: Obtener estadísticas globales
+      description: Obtiene estadísticas globales de la plataforma (solo PLATFORM_ADMIN)
+      operationId: getGlobalStats
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum:
+              - json
+              - pdf
+              - excel
+            default: json
+      responses:
+        '200':
+          description: Estadísticas globales obtenidas exitosamente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          restaurants:
+                            type: integer
+                          totalOrders:
+                            type: integer
+                          totalRevenue:
+                            type: number
+                          topRestaurants:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Restaurant'
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'

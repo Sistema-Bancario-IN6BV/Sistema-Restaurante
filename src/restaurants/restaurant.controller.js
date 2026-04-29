@@ -1,173 +1,118 @@
+"use strict";
 import Restaurant from './restaurant.model.js';
-import { cloudinary } from '../../middlewares/file-uploader.js'
+import {
+    normalizeAdminIds, extractToken, validateAdminIds,
+    findOrFail, buildFilter, buildSort
+} from '../../helpers/restaurant.helper.js';
+import { ok, fail } from '../../helpers/response.helper.js';
+
+const handleError = (res, error, message, defaultStatus = 500) =>
+    fail(res, message, error.statusCode ?? defaultStatus, error.message);
 
 export const createRestaurant = async (req, res) => {
     try {
-
-        const restaurantData = req.body;
+        const data = normalizeAdminIds(req.body);
 
         if (req.file) {
-            restaurantData.photo = req.file.path;
+            data.photo = req.file.path;
         }
 
-        const restaurant = new Restaurant(restaurantData);
-        await restaurant.save();
+        await validateAdminIds(data.adminIds, extractToken(req));
 
-        res.status(201).json({
-            success: true,
-            message: 'Restaurante creado exitosamente',
-            data: restaurant
-        })
-
+        const record = await new Restaurant(data).save();
+        ok(res, record, 'Restaurante creado exitosamente', 201);
     } catch (error) {
-        res.status(400).json({
-            success: false,
-            message: 'Error al crear el restaurante',
-            error: error.message
-        })
+        handleError(res, error, 'Error al crear restaurante', 400);
     }
-}
+};
 
 export const getRestaurants = async (req, res) => {
-
     try {
-        const { page = 1, limit = 10, isActive = true } = req.query;
+        const { page = 1, limit = 12, sort } = req.query;
+        const filter = buildFilter(req.query);
+        const sortOption = buildSort(sort);
 
-        const filter = { isActive };
+        const [records, total] = await Promise.all([
+            Restaurant.find(filter).limit(limit * 1).skip((page - 1) * limit).sort(sortOption),
+            Restaurant.countDocuments(filter)
+        ]);
 
-        const options = {
-            page: parseInt(page),
-            limit: parseInt(limit),
-            sort: { createdAt: -1 }
-        }
-
-        const restaurants = await Restaurant.find(filter)
-            .limit(limit * 1)
-            .skip((page - 1) * limit)
-            .sort(options.sort);
-
-        const total = await Restaurant.countDocuments(filter);
-
-        res.status(200).json({
-            success: true,
-            data: restaurants,
-            pagination: {
-                currentPage: page,
-                totalPages: Math.ceil(total / limit),
-                totalRecords: total,
-                limit
-            }
-        })
+        ok(res, records, null, 200);
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al obtener los restaurantes',
-            error: error.message
-        })
+        handleError(res, error, 'Error al obtener restaurantes');
     }
-
-}
+};
 
 export const getRestaurantById = async (req, res) => {
     try {
-        const { id } = req.params;
-
-        const restaurant = await Restaurant.findById(id);
-
-        if (!restaurant) {
-            return res.status(404).json({
-                success: false,
-                message: 'Restaurante no encontrado',
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            data: restaurant,
-        });
+        const record = await findOrFail(req.params.id);
+        ok(res, record);
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al obtener el restaurante',
-            error: error.message,
-        });
+        handleError(res, error, 'Error al obtener restaurante');
     }
 };
 
 export const updateRestaurant = async (req, res) => {
     try {
-        const { id } = req.params;
-
-        const currentRestaurant = await Restaurant.findById(id);
-        if (!currentRestaurant) {
-            return res.status(404).json({
-                success: false,
-                message: "Restaurante no encontrado",
-            });
-        }
-
-        const updateData = { ...req.body };
-
-        if (req.file) {
-            if (currentRestaurant.photo_public_id) {
-                await cloudinary.uploader.destroy(currentRestaurant.photo_public_id);
-            }
-
-            updateData.photo = req.file.path;
-            updateData.photo_public_id = req.file.filename;
-        }
-
-        const updatedRestaurant = await Restaurant.findByIdAndUpdate(id, updateData, {
-            new: true,
-            runValidators: true,
-        });
-
-        res.status(200).json({
-            success: true,
-            message: "Restaurante actualizado exitosamente",
-            data: updatedRestaurant,
-        });
+        const record = await Restaurant.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+        if (!record) throw Object.assign(new Error('Restaurante no encontrado'), { statusCode: 404 });
+        ok(res, record, 'Restaurante actualizado exitosamente');
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "Error al actualizar restaurante",
-            error: error.message,
-        });
+        handleError(res, error, 'Error al actualizar restaurante', 400);
     }
 };
 
-export const changeRestaurantStatus = async (req, res) => {
+export const deleteRestaurant = async (req, res) => {
     try {
-        const { id } = req.params;
-        const isActive = req.url.includes('/activate');
-        const action = isActive ? 'activado' : 'desactivado';
+        const record = await Restaurant.findByIdAndUpdate(req.params.id, { active: false }, { new: true });
+        if (!record) throw Object.assign(new Error('Restaurante no encontrado'), { statusCode: 404 });
+        ok(res, record, 'Restaurante eliminado exitosamente');
+    } catch (error) {
+        handleError(res, error, 'Error al eliminar restaurante');
+    }
+};
 
-        const restaurant = await Restaurant.findByIdAndUpdate(
-            id,
-            { isActive },
+export const uploadCover = async (req, res) => {
+    try {
+        const data = req.body;
+
+        if (req.file) {
+            data.photo = req.file.path;
+        }
+        const record = await Restaurant.findByIdAndUpdate(
+            req.params.id,
+            { photo: data.photo },
             { new: true }
         );
-
-        if (!restaurant) {
-            return res.status(404).json({
-                success: false,
-                message: 'Restaurante no encontrado',
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            message: `Restaurante ${action} exitosamente`,
-            data: restaurant,
-
-        });
+        if (!record) throw Object.assign(new Error('Restaurante no encontrado'), { statusCode: 404 });
+        ok(res, record, 'Foto actualizada exitosamente');
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al cambiar el estado del restaurante',
-            error: error.message,
-
-        });
+        handleError(res, error, 'Error al actualizar foto', 400);
     }
+};
+export const addPhoto = async (req, res) => {
+    try {
+        const record = await findOrFail(req.params.id);
+        if (record.photos.length >= 8) throw Object.assign(new Error('Máximo 8 fotos permitidas'), { statusCode: 400 });
 
+        record.photos.push({ url: req.file.secure_url, publicId: req.file.public_id });
+        await record.save();
+        ok(res, record, 'Foto agregada exitosamente', 201);
+    } catch (error) {
+        handleError(res, error, 'Error al agregar foto', 400);
+    }
+};
+
+export const deletePhoto = async (req, res) => {
+    try {
+        const record = await Restaurant.findByIdAndUpdate(
+            req.params.id,
+            { $pull: { photos: { _id: req.params.photoId } } },
+            { new: true }
+        );
+        if (!record) throw Object.assign(new Error('Restaurante no encontrado'), { statusCode: 404 });
+        ok(res, record, 'Foto eliminada exitosamente');
+    } catch (error) {
+        handleError(res, error, 'Error al eliminar foto', 400);
+    }
 };

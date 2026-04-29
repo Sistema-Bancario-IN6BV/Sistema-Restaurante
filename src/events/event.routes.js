@@ -1,27 +1,49 @@
-'use strict'
+import { Router } from 'express';
+import { uploadFieldImage } from '../../middlewares/file-uploader.js';
+import {
+    createEvent,
+    getEvents,
+    getEventById,
+    updateEvent,
+    cancelEvent,
+    uploadEventCover,
+    registerToEvent,
+    unregisterFromEvent,
+    getEventRegistrations,
+} from './event.controller.js';
+import {
+    validateGetEvents,
+    validateGetEventById,
+    validateCreateEvent,
+    validateUpdateEvent,
+    validateRegisterToEvent,
+    validateUnregisterFromEvent,
+    validateGetEventRegistrations,
+    validateCancelEvent,
+} from '../../middlewares/event-validators.js';
 
-import { Router } from "express"
-import { 
-    createEvent, 
-    registerToEvent, 
-    cancelRegistration,
-    getAttendeesList 
-} from "./event.controller.js"
-import { validateJWT } from "../../middlewares/validate-JWT.js"
-import { requireRole } from "../../middlewares/validate-role.js"
+const router = Router();
 
-const api = Router()
+// Rutas generales
+router.get('/', validateGetEvents, getEvents);
+router.post('/', validateCreateEvent, createEvent);
 
-// SR-190: Solo un Admin puede crear el evento
-api.post("/", [validateJWT, requireRole('ADMIN')], createEvent)
+// Rutas por ID de evento
+router.get('/:id', validateGetEventById, getEventById);
+router.put('/:id', validateUpdateEvent, updateEvent);
+router.patch('/:id/cancel', validateCancelEvent, cancelEvent);
 
-// SR-204: Cualquier usuario logueado puede inscribirse
-api.post("/register/:id", [validateJWT], registerToEvent)
+// Gestión de imagen de portada
+router.put(
+    '/:id/cover',
+    validateUpdateEvent,
+    uploadFieldImage.single('cover'),
+    uploadEventCover
+);
 
-// SR-207: El usuario puede cancelar su propia inscripción
-api.delete("/cancel/:id", [validateJWT], cancelRegistration)
+// Inscripciones
+router.post('/:id/register', validateRegisterToEvent, registerToEvent);
+router.delete('/:id/register', validateUnregisterFromEvent, unregisterFromEvent);
+router.get('/:id/registrations', validateGetEventRegistrations, getEventRegistrations);
 
-// SR-208: El Admin puede ver la lista de asistentes
-api.get("/attendees/:id", [validateJWT, requireRole('ADMIN')], getAttendeesList)
-
-export default api
+export default router;
