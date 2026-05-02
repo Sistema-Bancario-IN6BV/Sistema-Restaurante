@@ -2,13 +2,43 @@
 
 import Event from './event.model.js';
 import EventRegistration from './eventRegistration.model.js';
+import Restaurant from '../restaurants/restaurant.model.js';
 import { cloudinary } from '../../middlewares/file-uploader.js';
+import { extractToken } from '../../helpers/restaurant.helper.js';
 
 export const createEvent = async (req, res) => {
     try {
         if (new Date(req.body.date) < new Date()) {
             return res.status(400).json({ success: false, message: 'La fecha debe ser futura' });
         }
+        
+        // Obtener adminId del usuario autenticado
+        const adminId = req.user?.id;
+        
+        // Si es admin de restaurante (no platform), asignar automáticamente su restaurante
+        if (adminId && req.user?.role !== 'PLATFORM_ADMIN') {
+            const myRestaurants = await Restaurant.find({ adminId, active: true }).select('_id');
+            if (myRestaurants.length === 0) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'No tienes restaurantes activos asignados' 
+                });
+            }
+            // Si no specify un restaurante, usar el primero
+            if (!req.body.restaurantId) {
+                req.body.restaurantId = myRestaurants[0]._id;
+            } else {
+                // Verificar que el restaurante especificado le pertenezca
+                const allowedIds = myRestaurants.map(r => r._id.toString());
+                if (!allowedIds.includes(req.body.restaurantId.toString())) {
+                    return res.status(403).json({ 
+                        success: false, 
+                        message: 'No tienes permisos para crear eventos en este restaurante' 
+                    });
+                }
+            }
+        }
+        
         const event = await Event.create(req.body);
         res.status(201).json({ success: true, data: event });
     } catch (err) {
@@ -19,10 +49,28 @@ export const createEvent = async (req, res) => {
 export const getEvents = async (req, res) => {
     try {
         const { restaurantId, from, to, page = 1, limit = 12 } = req.query;
-        const filter = { active: true, status: { $ne: 'CANCELLED' }, date: { $gte: new Date() } };
-        if (restaurantId) filter.restaurantId = restaurantId;
-        if (from) filter.date.$gte = new Date(from);
-        if (to) filter.date.$lte = new Date(to);
+        
+        // obtener adminId del token
+        const adminId = req.user?.id || req.header('x-user-id');
+        
+        // construir filtro base
+        const filter = { active: true };
+        
+        // si es admin de restaurante (no platform), filtrar solo sus restaurantes
+        if (adminId && req.user?.role !== 'PLATFORM_ADMIN') {
+            const myRestaurants = await Restaurant.find({ adminId, active: true }).select('_id');
+            const myRestaurantIds = myRestaurants.map(r => r._id);
+            filter.restaurantId = { $in: myRestaurantIds };
+        } else if (restaurantId) {
+            filter.restaurantId = restaurantId;
+        }
+        
+        // filtros adicionales
+        if (from || to) {
+            filter.date = {};
+            if (from) filter.date.$gte = new Date(from);
+            if (to) filter.date.$lte = new Date(to);
+        }
 
         const skip = (parseInt(page) - 1) * parseInt(limit);
         const [events, total] = await Promise.all([
