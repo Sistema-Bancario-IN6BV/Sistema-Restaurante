@@ -346,3 +346,33 @@ export const confirmReservation = async (req, res) => {
         });
     }
 };
+
+export const getReservationsForAdmin = async (req, res) => {
+    try {
+
+        if (req.user.role !== 'PLATFORM_ADMIN' && req.user.role !== 'RESTAURANT_ADMIN') {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'No tienes permisos' 
+            });
+        }
+
+        const userId = req.user?.id || req.user?._id;
+        if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+        const restaurants = await Restaurant.find({ adminId: userId }).select('_id').lean();
+        const restaurantIds = restaurants.map(r => r._id);
+
+        if (restaurantIds.length === 0) return res.json({ data: [] });
+
+        const reservations = await Reservation.find({ restaurantId: { $in: restaurantIds } })
+        .populate('userId', '-password') 
+        .populate('tableId')
+        .lean();
+
+        return res.json({ data: reservations });
+    } catch (err) {
+        console.error('getReservationsForAdmin error', err);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+};
