@@ -12,6 +12,7 @@ import {
     registerToEvent,
     unregisterFromEvent,
     getEventRegistrations,
+    deleteEvent,
 } from './event.controller.js';
 import {
     validateGetEvents,
@@ -23,6 +24,8 @@ import {
     validateGetEventRegistrations,
     validateCancelEvent,
 } from '../../middlewares/event-validators.js';
+
+import { validateDeleteEvent } from './event.delete.validator.js';
 
 const router = Router();
 
@@ -37,6 +40,7 @@ router.post('/', validateCreateEvent, createEvent);
 router.get('/:id', validateGetEventById, getEventById);
 router.put('/:id', validateUpdateEvent, checkRestaurantPermission('id'), updateEvent);
 router.patch('/:id/cancel', validateCancelEvent, checkRestaurantPermission('id'), cancelEvent);
+router.delete('/:id', validateDeleteEvent, checkRestaurantPermission('id'), deleteEvent);
 
 // Gestión de imagen de portada
 router.put(

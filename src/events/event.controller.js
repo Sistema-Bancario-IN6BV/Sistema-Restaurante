@@ -205,3 +205,21 @@ export const getEventRegistrations = async (req, res) => {
         res.status(500).json({ success: false, message: err.message });
     }
 };
+
+// Soft delete: marcar como no activo para que ya no aparezca en el frontend
+export const deleteEvent = async (req, res) => {
+    try {
+        const event = await Event.findById(req.params.id);
+        if (!event) {
+            return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+        }
+
+        event.active = false;
+        await event.save();
+
+        return res.json({ success: true, message: 'Evento eliminado', data: event });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: err.message });
+    }
+};
+
