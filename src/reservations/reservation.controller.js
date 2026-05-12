@@ -2,6 +2,7 @@
 
 import Reservation from './reservation.model.js';
 import Table from '../tables/table.model.js';
+import Restaurant from '../restaurants/restaurant.model.js';
 
 export const createReservation = async (req, res) => {
     try {
