@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { createReservation, getMyReservations, getReservationsByRestaurant, getReservationById, 
-		updateReservation, cancelReservation, confirmReservation, getReservationsForAdmin} from './reservation.controller.js';
+		updateReservation, cancelReservation, confirmReservation, getReservationsForAdmin } from './reservation.controller.js';
 import { validateCreateReservation, validateGetMyReservations, validateGetReservationsByRestaurant, 
 		validateGetReservationById, validateUpdateReservation, validateCancelReservation,
 		validateConfirmReservation } from '../../middlewares/reservation-validators.js';
