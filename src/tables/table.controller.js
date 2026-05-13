@@ -53,7 +53,7 @@ export const getRestaurantTables = async (req,res)=>{
         const { id } = req.params
         const { location, status } = req.query
 
-        const filter = { restaurantId: id, active: false }
+        const filter = { restaurantId: id, active: true, status: 'AVAILABLE' }
 
         if(location) filter.location = location
         if(status) filter.status = status
