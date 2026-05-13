@@ -132,4 +132,16 @@ export const validateConfirmReservation = [
         .isMongoId()
         .withMessage('ID debe ser un ObjectId válido de MongoDB'),
     checkValidators,
+];export const validateGetReservationsForAdmin = [
+    validateJWT,
+    requireRole(USER_ROLES.RESTAURANT_ADMIN, USER_ROLES.PLATFORM_ADMIN),
+    query('page')
+        .optional()
+        .isInt({ min: 1 })
+        .withMessage('La pagina debe ser un numero mayor a 0'),
+    query('limit')
+        .optional()
+        .isInt({ min: 1 })
+        .withMessage('El limite debe ser un numero mayor a 0'),
+    checkValidators,
 ];
