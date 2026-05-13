@@ -345,4 +345,43 @@ export const confirmReservation = async (req, res) => {
             message: err.message 
         });
     }
+};export const getReservationsForAdmin = async (req, res) => {
+    try {
+        const { status, date, page = 1, limit = 50 } = req.query;
+        const { default: Restaurant } = await import('../restaurants/restaurant.model.js');
+        const restaurant = await Restaurant.findOne({ adminId: req.user.id });
+        if (!restaurant) {
+            return res.status(404).json({ success: false, message: 'Restaurante no encontrado para este administrador' });
+        }
+        
+        const filter = { restaurantId: restaurant._id };
+        if (status) filter.status = status;
+        if (date) filter.date = new Date(date);
+
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const [reservations, total] = await Promise.all([
+            Reservation.find(filter)
+                .populate('tableId', 'number capacity')
+                .populate('userId', 'username email')
+                .sort({ date: -1, time: 1 })
+                .skip(skip)
+                .limit(parseInt(limit)),
+            Reservation.countDocuments(filter),
+        ]);
+
+        res.json({ 
+            success: true, 
+            data: reservations, 
+            pagination: { 
+                total, 
+                page: parseInt(page), 
+                pages: Math.ceil(total / parseInt(limit)) 
+            } 
+        });
+    } catch (err) {
+        res.status(500).json({ 
+            success: false, 
+            message: err.message 
+        });
+    }
 };
