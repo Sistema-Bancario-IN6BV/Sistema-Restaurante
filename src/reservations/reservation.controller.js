@@ -2,6 +2,7 @@
 
 import Reservation from './reservation.model.js';
 import Table from '../tables/table.model.js';
+import Restaurant from '../restaurants/restaurant.model.js';
 
 export const createReservation = async (req, res) => {
     try {
@@ -345,43 +346,34 @@ export const confirmReservation = async (req, res) => {
             message: err.message 
         });
     }
-};export const getReservationsForAdmin = async (req, res) => {
+};
+
+export const getReservationsForAdmin = async (req, res) => {
     try {
-        const { status, date, page = 1, limit = 50 } = req.query;
-        const { default: Restaurant } = await import('../restaurants/restaurant.model.js');
-        const restaurant = await Restaurant.findOne({ adminId: req.user.id });
-        if (!restaurant) {
-            return res.status(404).json({ success: false, message: 'Restaurante no encontrado para este administrador' });
+
+        if (req.user.role !== 'PLATFORM_ADMIN' && req.user.role !== 'RESTAURANT_ADMIN') {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'No tienes permisos' 
+            });
         }
-        
-        const filter = { restaurantId: restaurant._id };
-        if (status) filter.status = status;
-        if (date) filter.date = new Date(date);
 
-        const skip = (parseInt(page) - 1) * parseInt(limit);
-        const [reservations, total] = await Promise.all([
-            Reservation.find(filter)
-                .populate('tableId', 'number capacity')
-                .populate('userId', 'username email')
-                .sort({ date: -1, time: 1 })
-                .skip(skip)
-                .limit(parseInt(limit)),
-            Reservation.countDocuments(filter),
-        ]);
+        const userId = req.user?.id || req.user?._id;
+        if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
-        res.json({ 
-            success: true, 
-            data: reservations, 
-            pagination: { 
-                total, 
-                page: parseInt(page), 
-                pages: Math.ceil(total / parseInt(limit)) 
-            } 
-        });
+        const restaurants = await Restaurant.find({ adminId: userId }).select('_id').lean();
+        const restaurantIds = restaurants.map(r => r._id);
+
+        if (restaurantIds.length === 0) return res.json({ data: [] });
+
+        const reservations = await Reservation.find({ restaurantId: { $in: restaurantIds } })
+        .populate('userId', '-password') 
+        .populate('tableId')
+        .lean();
+
+        return res.json({ data: reservations });
     } catch (err) {
-        res.status(500).json({ 
-            success: false, 
-            message: err.message 
-        });
+        console.error('getReservationsForAdmin error', err);
+        return res.status(500).json({ message: 'Internal server error' });
     }
 };
