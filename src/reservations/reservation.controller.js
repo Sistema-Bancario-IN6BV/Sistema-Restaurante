@@ -78,18 +78,24 @@ export const createReservation = async (req, res) => {
         }
 
         const reservation = await Reservation.create({
-            userId: req.user.id, 
-            restaurantId, 
-            tableId, 
-            date: dateTime, 
-            time, 
-            guests, 
+            userId: req.user.id,
+            restaurantId,
+            tableId,
+            date: dateTime,
+            time,
+            guests,
             notes,
+            status: 'CONFIRMED'
         });
-    
-        res.status(201).json({ 
-            success: true, 
-            data: reservation 
+        
+        await Table.findByIdAndUpdate(
+            tableId,
+            { status: 'RESERVED' }
+        );
+
+        res.status(201).json({
+            success: true,
+            data: reservation
         });
     } catch (err) {
         if (err.code === 11000) {
