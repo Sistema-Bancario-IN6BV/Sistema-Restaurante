@@ -8,10 +8,6 @@ export const validateCreateTable = [
     validateJWT,
     requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
 
-    param('id')
-        .isMongoId()
-        .withMessage('El restaurante debe ser un ObjectId válido'),
-
     body('number')
         .notEmpty()
         .withMessage('El número de mesa es requerido')
@@ -86,9 +82,6 @@ export const validateGetTableById = [
 export const validateGetTables = [
     validateJWT,
     requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
-    param('id')
-        .isMongoId()
-        .withMessage('ID debe ser un ObjectId válido de MongoDB'),
     checkValidators,
 ];
 
