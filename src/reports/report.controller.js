@@ -643,3 +643,115 @@ export const exportGlobalPdf = async (req, res) => {
         res.status(500).json({ success: false, message: err.message });
     }
 };
+export const getDashboardData = async (req, res) => {
+    try {
+        let { role, restaurantId } = req.query;
+
+        if (!role && req.user) role = req.user.role;
+
+        if (role === 'PLATFORM_ADMIN') {
+            const [totalRestaurants, totalOrders, revenueResult, recentRestaurantsResult, revenueDataRaw] = await Promise.all([
+               Restaurant.countDocuments({ active: true }),
+               Order.countDocuments({ active: true }),
+               Invoice.aggregate([
+                  { $match: { status: 'PAID' } },
+                  { $group: { _id: null, total: { $sum: '$total' } } }
+               ]),
+               Restaurant.find().sort({ createdAt: -1 }).limit(5).select('name email active _id'),
+               Invoice.aggregate([
+                  { $match: { status: 'PAID', paidAt: { $gte: new Date(new Date().setDate(new Date().getDate() - 7)) } } },
+                  { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$paidAt' } }, value: { $sum: '$total' } } },
+                  { $sort: { _id: 1 } }
+               ])
+            ]);
+
+            const revenueData = revenueDataRaw.map(r => ({ name: r._id, value: r.value }));
+
+            return res.status(200).json({
+                success: true,
+                data: {
+                    totalRestaurants,
+                    totalOrders,
+                    totalRevenue: revenueResult[0]?.total || 0,
+                    recentRestaurants: recentRestaurantsResult.map(r => ({ id: r._id.toString(), name: r.name, email: r.email || '', active: r.active })),
+                    revenueData
+                }
+            });
+        } 
+        
+        if (role === 'RESTAURANT_ADMIN' || role === 'ADMIN_ROLE') {
+            if (!restaurantId && req.user) {
+                 restaurantId = req.user.restaurant;
+            }
+            let restId;
+            if (restaurantId && restaurantId !== "undefined") {
+                 restId = new Types.ObjectId(restaurantId);
+            } else {
+                 const { adminId } = req.query;
+                 const lookupId = adminId || (req.user ? req.user.id : null);
+                 if (!lookupId) return res.status(400).json({ success: false, message: "restaurantId o adminId es requerido" });
+                 const restaurant = await Restaurant.findOne({ adminId: lookupId, active: true });
+                 if (!restaurant) return res.status(404).json({ success: false, message: "Restaurante no encontrado para este administrador" });
+                 restId = restaurant._id;
+            }
+
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(today.getDate() - 7);
+            
+            const daysMap = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sáb"];
+
+            const [todayOrders, todayRevenueResult, ordersDataRaw, topDishesResult, recentOrdersResult, occupiedTables] = await Promise.all([
+                Order.countDocuments({ restaurantId: restId, active: true, createdAt: { $gte: today } }),
+                Invoice.aggregate([
+                    { $match: { restaurantId: restId, status: 'PAID', paidAt: { $gte: today } } },
+                    { $group: { _id: null, total: { $sum: '$total' } } }
+                ]),
+                Order.aggregate([
+                    { $match: { restaurantId: restId, active: true, createdAt: { $gte: sevenDaysAgo } } },
+                    { $group: { _id: { $dayOfWeek: "$createdAt" }, orders: { $sum: 1 } } }
+                ]),
+                Order.aggregate([
+                    { $match: { restaurantId: restId, status: 'DELIVERED', active: true } },
+                    { $unwind: '$items' },
+                    { $group: { _id: '$items.menuItemId', name: { $first: '$items.name' }, sold: { $sum: '$items.quantity' } } },
+                    { $sort: { sold: -1 } },
+                    { $limit: 5 }
+                ]),
+                Order.find({ restaurantId: restId, active: true }).sort({ createdAt: -1 }).limit(5).select('_id total status items createdAt'),
+                Reservation.countDocuments({ restaurantId: restId, active: true, status: 'CONFIRMED' })
+            ]);
+            
+            const ordersData = Array.from({length: 7}, (_, i) => {
+                const dayMatch = ordersDataRaw.find(r => r._id === i + 1);
+                return { day: daysMap[i], orders: dayMatch ? dayMatch.orders : 0 };
+            });
+
+            const recentOrders = recentOrdersResult.map(o => ({
+                id: o._id.toString(),
+                total: o.total || 0,
+                status: o.status,
+                items: o.items ? o.items.length : 0
+            }));
+
+            return res.status(200).json({
+                success: true,
+                data: {
+                    todayOrders,
+                    todayRevenue: todayRevenueResult[0]?.total || 0,
+                    lowStockAlerts: 0,
+                    occupiedTables,
+                    ordersData,
+                    topDishes: topDishesResult,
+                    recentOrders
+                }
+            });
+        }
+        
+        return res.status(400).json({ success: false, message: "Rol no soportado o inválido" });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: err.message });
+    }
+}

@@ -6,83 +6,104 @@ import Restaurant from '../restaurants/restaurant.model.js';
 export const createTable = async (req, res) => {
     try {
 
-        const { id } = req.params
-        const data = req.body
+        const data = req.body;
 
-        const restaurant = await Restaurant.findById(id)
+        const restaurant = await Restaurant.findOne({
+            adminId: req.user.id
+        });
 
-        if(!restaurant){
+        if (!restaurant) {
             return res.status(404).json({
                 success: false,
                 message: 'Restaurante no encontrado'
-            })
+            });
         }
 
         const newTable = new Table({
             ...data,
-            restaurantId: id
-        })
+            restaurantId: restaurant._id
+        });
 
-        await newTable.save()
+        await newTable.save();
 
         res.status(201).json({
             success: true,
             message: 'Mesa creada correctamente',
             table: newTable
-        })
+        });
 
     } catch (error) {
+
         if (error.code === 11000) {
             return res.status(400).json({
                 success: false,
-                message: 'Ya existe una mesa con ese número en este restaurante'
-            })
+                message: 'Ya existe una mesa con ese número'
+            });
         }
 
         res.status(500).json({
             success: false,
             message: 'Error al crear mesa',
             error: error.message
-        })
+        });
     }
-}
+};
 
-export const getRestaurantTables = async (req,res)=>{
-    try{
+export const getRestaurantTables = async (req, res) => {
+    try {
 
-        const { id } = req.params
-        const { location, status } = req.query
+        const { location, status } = req.query;
 
-        const filter = { restaurantId: id, active: false }
+        const restaurant = await Restaurant.findOne({
+            adminId: req.user.id
+        });
 
-        if(location) filter.location = location
-        if(status) filter.status = status
+        if (!restaurant) {
+            return res.status(404).json({
+                success: false,
+                message: 'Restaurante no encontrado'
+            });
+        }
+
+        const filter = {
+            restaurantId: restaurant._id,
+            active: true
+        };
+
+        if (location) filter.location = location;
+
+        if (status) filter.status = status;
 
         const tables = await Table.find(filter)
-            .populate('restaurantId','name')
+            .populate('restaurantId', 'name');
 
         res.status(200).json({
             success: true,
             total: tables.length,
             tables
-        })
+        });
 
-    }catch(error){
+    } catch (error) {
+
         res.status(500).json({
             success: false,
-            message:'Error al obtener mesas',
+            message: 'Error al obtener mesas',
             error: error.message
-        })
+        });
     }
-}
+};
 
 export const getTableById = async (req,res)=>{
     try{
 
         const { id } = req.params
 
-        const table = await Table.findById(id)
-        .populate('restaurantId','name')
+        const restaurantId = req.user.restaurantId;
+
+        const table = await Table.findOne({
+            _id: id,
+            restaurantId
+        }).populate('restaurantId','name')
 
         if(!table || !table.active){
             return res.status(404).json({
@@ -106,85 +127,120 @@ export const getTableById = async (req,res)=>{
     }
 }
 
-export const updateTable = async (req,res)=>{
-    try{
+export const updateTable = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { capacity, location, description } = req.body;
 
-        const { id } = req.params
-        const { capacity, location, description } = req.body
+        const userId = req.user.id;
 
-        const table = await Table.findById(id)
+        const restaurant = await Restaurant.findOne({ adminId: userId });
 
-        if(!table){
+        if (!restaurant) {
             return res.status(404).json({
                 success: false,
-                message: 'Mesa no encontrada'
-            })
+                message: "Restaurante no encontrado"
+            });
         }
 
-        const updatedTable = await Table.findByIdAndUpdate(
-            id,
-            { capacity, location, description },
-            { new: true, runValidators: true }
-        )
+        const updatedTable = await Table.findOneAndUpdate(
+            {
+                _id: id,
+                restaurantId: restaurant._id
+            },
+            {
+                capacity,
+                location,
+                description
+            },
+            {
+                new: true,
+                runValidators: true
+            }
+        );
+
+        if (!updatedTable) {
+            return res.status(404).json({
+                success: false,
+                message: "Mesa no encontrada"
+            });
+        }
 
         res.status(200).json({
             success: true,
-            message: 'Mesa actualizada',
+            message: "Mesa actualizada",
             updatedTable
-        })
-
-    }catch(error){
-
+        });
+    } catch (error) {
         res.status(500).json({
             success: false,
-            message: 'Error al actualizar mesa',
+            message: "Error al actualizar mesa",
             error: error.message
-        })
+        });
     }
-}
+};
 
-export const changeTableStatus = async (req,res)=>{
-    try{
+export const changeTableStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
 
-        const { id } = req.params
-        const { status } = req.body
+        const restaurant = await Restaurant.findOne({
+            adminId: req.user.id
+        }); 
 
-        const table = await Table.findById(id)
+        if (!restaurant) {
+            return res.status(404).json({
+                success: false,
+                message: "Restaurante no encontrado"
+            });
+        }
+
+        const table = await Table.findOneAndUpdate(
+            {
+                _id: id,
+                restaurantId: restaurant._id
+            },
+            {
+                status
+            },
+            {
+                new: true
+            }
+        );
 
         if (!table) {
             return res.status(404).json({
                 success: false,
                 message: 'Mesa no encontrada'
-            })
+            });
         }
-
-        table.status = status
-        await table.save()
 
         res.status(200).json({
             success: true,
             message: 'Estado actualizado',
             table
-        })
-
-    }catch(error){
+        });
+    } catch (error) {
         res.status(500).json({
             success: false,
             message: 'Error al cambiar estado',
             error: error.message
-        })
+        });
     }
-}
+};
 
 export const changeTableActive = async (req, res) => {
     try {
         const { id } = req.params;
 
+        const restaurantId = req.user.restaurantId;
+
         const active = req.url.includes('/activate');
         const action = active ? 'activada' : 'desactivada';
 
         const updatedTable = await Table.findByIdAndUpdate(
-            id,
+            { _id: id, restaurantId },
             { active },
             { new: true }
         );

@@ -10,7 +10,7 @@ export const validateGetRestaurantStats = [
     requireRole(USER_ROLES.RESTAURANT_ADMIN, USER_ROLES.PLATFORM_ADMIN),
     param('id')
         .isMongoId()
-        .withMessage('ID del restaurante debe ser un ObjectId válido'),
+        .withMessage('ID del restaurante debe ser un ObjectId v??lido'),
     checkRestaurantPermission('id'),
     checkValidators,
 ];
@@ -20,7 +20,7 @@ export const validateGetTopDishes = [
     requireRole(USER_ROLES.RESTAURANT_ADMIN, USER_ROLES.PLATFORM_ADMIN),
     param('id')
         .isMongoId()
-        .withMessage('ID del restaurante debe ser un ObjectId válido'),
+        .withMessage('ID del restaurante debe ser un ObjectId v??lido'),
     checkRestaurantPermission('id'),
     checkValidators,
 ];
@@ -30,7 +30,7 @@ export const validateGetRevenue = [
     requireRole(USER_ROLES.RESTAURANT_ADMIN, USER_ROLES.PLATFORM_ADMIN),
     param('id')
         .isMongoId()
-        .withMessage('ID del restaurante debe ser un ObjectId válido'),
+        .withMessage('ID del restaurante debe ser un ObjectId v??lido'),
     checkRestaurantPermission('id'),
     checkValidators,
 ];
@@ -40,7 +40,7 @@ export const validateGetPeakHours = [
     requireRole(USER_ROLES.RESTAURANT_ADMIN, USER_ROLES.PLATFORM_ADMIN),
     param('id')
         .isMongoId()
-        .withMessage('ID del restaurante debe ser un ObjectId válido'),
+        .withMessage('ID del restaurante debe ser un ObjectId v??lido'),
     checkRestaurantPermission('id'),
     checkValidators,
 ];
@@ -55,11 +55,11 @@ export const validateTopSellingParams = [
     query('restaurantId')
         .optional()
         .isMongoId()
-        .withMessage('El ID del restaurante debe ser un ObjectId válido'),
+        .withMessage('El ID del restaurante debe ser un ObjectId v??lido'),
     query('limit')
         .optional()
         .isInt({ min: 1 })
-        .withMessage('El límite debe ser un entero mayor a 0'),
+        .withMessage('El l??mite debe ser un entero mayor a 0'),
     checkValidators,
 ];
 
@@ -67,7 +67,7 @@ export const validatePeakHoursParams = [
     query('restaurantId')
         .optional()
         .isMongoId()
-        .withMessage('El ID del restaurante debe ser un ObjectId válido'),
+        .withMessage('El ID del restaurante debe ser un ObjectId v??lido'),
     checkValidators,
 ];
 
@@ -75,7 +75,7 @@ export const validateRestaurantDemandParams = [
     query('limit')
         .optional()
         .isInt({ min: 1 })
-        .withMessage('El límite debe ser un entero mayor a 0'),
+        .withMessage('El l??mite debe ser un entero mayor a 0'),
     checkValidators,
 ];
 
@@ -83,7 +83,7 @@ export const validateReservationsStatsParams = [
     query('restaurantId')
         .optional()
         .isMongoId()
-        .withMessage('El ID del restaurante debe ser un ObjectId válido'),
+        .withMessage('El ID del restaurante debe ser un ObjectId v??lido'),
     checkValidators,
 ];
 
@@ -92,7 +92,7 @@ export const validateRestaurantPerformanceParams = [
         .notEmpty()
         .withMessage('El ID del restaurante es requerido')
         .isMongoId()
-        .withMessage('El ID del restaurante debe ser un ObjectId válido'),
+        .withMessage('El ID del restaurante debe ser un ObjectId v??lido'),
     checkValidators,
 ];
 
@@ -100,11 +100,11 @@ export const validateOrdersByDayParams = [
     query('restaurantId')
         .optional()
         .isMongoId()
-        .withMessage('El ID del restaurante debe ser un ObjectId válido'),
+        .withMessage('El ID del restaurante debe ser un ObjectId v??lido'),
     query('days')
         .optional()
         .isInt({ min: 1 })
-        .withMessage('Los días deben ser un entero mayor a 0'),
+        .withMessage('Los d??as deben ser un entero mayor a 0'),
     checkValidators,
 ];
 
@@ -117,6 +117,11 @@ export const validateRestaurantReportParams = [
         .notEmpty()
         .withMessage('El ID del restaurante es requerido')
         .isMongoId()
-        .withMessage('El ID del restaurante debe ser un ObjectId válido'),
+        .withMessage('El ID del restaurante debe ser un ObjectId v??lido'),
     checkValidators,
+];
+
+export const validateGetDashboardData = [
+    validateJWT, 
+    checkValidators 
 ];

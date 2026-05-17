@@ -2,6 +2,7 @@
 
 import Reservation from './reservation.model.js';
 import Table from '../tables/table.model.js';
+import Restaurant from '../restaurants/restaurant.model.js';
 
 export const createReservation = async (req, res) => {
     try {
@@ -77,18 +78,24 @@ export const createReservation = async (req, res) => {
         }
 
         const reservation = await Reservation.create({
-            userId: req.user.id, 
-            restaurantId, 
-            tableId, 
-            date: dateTime, 
-            time, 
-            guests, 
+            userId: req.user.id,
+            restaurantId,
+            tableId,
+            date: dateTime,
+            time,
+            guests,
             notes,
+            status: 'CONFIRMED'
         });
-    
-        res.status(201).json({ 
-            success: true, 
-            data: reservation 
+        
+        await Table.findByIdAndUpdate(
+            tableId,
+            { status: 'RESERVED' }
+        );
+
+        res.status(201).json({
+            success: true,
+            data: reservation
         });
     } catch (err) {
         if (err.code === 11000) {
@@ -344,5 +351,35 @@ export const confirmReservation = async (req, res) => {
             success: false, 
             message: err.message 
         });
+    }
+};
+
+export const getReservationsForAdmin = async (req, res) => {
+    try {
+
+        if (req.user.role !== 'PLATFORM_ADMIN' && req.user.role !== 'RESTAURANT_ADMIN') {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'No tienes permisos' 
+            });
+        }
+
+        const userId = req.user?.id || req.user?._id;
+        if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+        const restaurants = await Restaurant.find({ adminId: userId }).select('_id').lean();
+        const restaurantIds = restaurants.map(r => r._id);
+
+        if (restaurantIds.length === 0) return res.json({ data: [] });
+
+        const reservations = await Reservation.find({ restaurantId: { $in: restaurantIds } })
+        .populate('userId', '-password') 
+        .populate('tableId')
+        .lean();
+
+        return res.json({ data: reservations });
+    } catch (err) {
+        console.error('getReservationsForAdmin error', err);
+        return res.status(500).json({ message: 'Internal server error' });
     }
 };

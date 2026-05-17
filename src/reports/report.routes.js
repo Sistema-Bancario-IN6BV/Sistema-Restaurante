@@ -5,6 +5,7 @@ import {
   getRevenue,
   getPeakHours,
   getGlobalStats,
+  getDashboardData
 } from './report.controller.js';
 import {
   validateGetRestaurantStats,
@@ -12,9 +13,12 @@ import {
   validateGetRevenue,
   validateGetPeakHours,
   validateGetGlobalStats,
+  validateGetDashboardData
 } from '../../middlewares/report-validators.js';
 
 const router = Router();
+
+router.get('/dashboard-data', validateGetDashboardData, getDashboardData);
 
 router.get('/restaurant/:id/stats', validateGetRestaurantStats, getRestaurantStats);
 router.get('/restaurant/:id/top-dishes', validateGetTopDishes, getTopDishes);
