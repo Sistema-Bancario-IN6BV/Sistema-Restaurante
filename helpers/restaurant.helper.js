@@ -30,6 +30,18 @@ export const findOrFail = async (id) => {
     return record;
 };
 
+// nueva función: obtener restaurantes por adminId
+export const getRestaurantsByAdminId = async (adminId) => {
+    const restaurants = await Restaurant.find({ adminId, active: true }).select('_id name');
+    return restaurants;
+};
+
+// nueva función: obtener restaurantIds por adminId
+export const getRestaurantIdsByAdminId = async (adminId) => {
+    const restaurants = await getRestaurantsByAdminId(adminId);
+    return restaurants.map(r => r._id);
+};
+
 export const buildFilter = (query) => {
     const { active = true, city, category, minPrice, maxPrice, search } = query;
     const filter = { active: active === 'true' || active === true };
