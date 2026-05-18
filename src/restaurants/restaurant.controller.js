@@ -28,8 +28,20 @@ export const createRestaurant = async (req, res) => {
 
 export const getRestaurants = async (req, res) => {
     try {
-        const { page = 1, limit = 12, sort } = req.query;
+        const { page = 1, limit = 12, sort, adminId } = req.query;
+        
+        // Si es admin de restaurante (no platform), filtrar solo sus restaurantes
+        if (req.user?.role !== 'PLATFORM_ADMIN') {
+            const myRestaurants = await Restaurant.find({ adminId: req.user.id, active: true });
+            ok(res, myRestaurants, null, 200);
+            return;
+        }
+        
+        // PLATFORM_ADMIN puede ver todos o filtrar por adminId
         const filter = buildFilter(req.query);
+        if (adminId) {
+            filter.adminId = adminId;
+        }
         const sortOption = buildSort(sort);
 
         const [records, total] = await Promise.all([

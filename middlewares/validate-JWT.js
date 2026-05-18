@@ -20,6 +20,10 @@ export const validateJWT = (req, res, next) => {
         req.header('x-token') ||
         req.header('Authorization')?.replace('Bearer ', '');
 
+    // Debug: mostrar qué token se recibe
+    console.log('[DEBUG JWT] Token received:', token ? `${token.substring(0, 30)}...` : 'NULL');
+    console.log('[DEBUG JWT] Headers:', JSON.stringify(req.headers));
+
     if (!token) {
         return res.status(401).json({
             success: false,
@@ -57,7 +61,7 @@ export const validateJWT = (req, res, next) => {
         if (error.name === 'TokenExpiredError') {
             return res.status(401).json({
                 success: false,
-                message: 'El token ha expirado',
+                message: 'El token ha expireed',
                 error: 'TOKEN_EXPIRED',
             });
         }

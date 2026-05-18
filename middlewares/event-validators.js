@@ -80,7 +80,8 @@ export const validateUpdateEvent = [
 	checkValidators,
 ];
 
-// Activar / Desactivar evento (solo ADMIN)
+// --- Status change validator ---
+// Para RESTAURANT_ADMIN: el evento debe pertenecer a su restaurante.
 export const validateEventStatusChange = [
 	validateJWT,
 	requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),
@@ -90,6 +91,7 @@ export const validateEventStatusChange = [
 	checkEntityRestaurantPermission('Event', 'restaurantId', 'id'),
 	checkValidators,
 ];
+
 
 // Obtener evento por ID
 export const validateGetEventById = [

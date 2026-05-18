@@ -7,87 +7,120 @@ import Restaurant from '../restaurants/restaurant.model.js';
 export const createReservation = async (req, res) => {
     try {
         const restaurantId = req.body.restaurant || req.body.restaurantId;
+
         const tableId = req.body.table || req.body.tableId;
-    
+
         let date = req.body.date;
         let time = req.body.time;
-    
+
         if (req.body.reservationDate) {
             const dateObj = new Date(req.body.reservationDate);
+
             date = dateObj.toISOString().split('T')[0];
+
             time = req.body.time || dateObj.toTimeString().slice(0, 5);
         }
-    
+
         const guests = req.body.guests || req.body.numberOfGuests;
+
         const notes = req.body.notes;
 
         if (!time || !/^\d{2}:\d{2}$/.test(time)) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'La hora debe estar en formato HH:MM' 
+            return res.status(400).json({
+                success: false,
+                message: 'La hora debe estar en formato HH:MM'
             });
         }
 
-        if (new Date(date) < new Date().setHours(0, 0, 0, 0)) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'La fecha debe ser futura' 
+        if (new Date(date) < new Date().setHours(0,0,0,0)) {
+            return res.status(400).json({
+                success: false,
+                message: 'La fecha debe ser futura'
             });
         }
 
-        const table = await Table.findOne({ 
-            _id: tableId, 
-            restaurantId, 
-            active: true 
+        const table = await Table.findOne({
+            _id: tableId,
+            restaurantId,
+            active: true
         });
 
-        if (!table) 
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Mesa no encontrada en este restaurante' 
+        if (!table) {
+            return res.status(404).json({
+                success: false,
+                message: 'Mesa no encontrada en este restaurante'
             });
+        }
 
         if (guests > table.capacity) {
-            return res.status(400).json({ 
-                success: false, 
-                message: `La mesa tiene capacidad para ${table.capacity} personas` 
+            return res.status(400).json({
+                success: false,
+                message: `La mesa tiene capacidad para ${table.capacity} personas`
             });
         }
 
+        const [year, month, day] = date.split('-');
+
+        const reservationDate = new Date(
+            year,
+            month - 1,
+            day
+        );
+
         const [hours, minutes] = time.split(':');
-        const dateTime = new Date(date);
-        dateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
-        const oneHourBefore = new Date(dateTime.getTime() - 60 * 60 * 1000);
-        const oneHourAfter = new Date(dateTime.getTime() + 60 * 60 * 1000);
+        reservationDate.setHours(
+            parseInt(hours),
+            parseInt(minutes),
+            0,
+            0
+        );
 
-        const conflictingReservation = await Reservation.findOne({
+        const sameDayStart = new Date(reservationDate);
+        sameDayStart.setHours(0,0,0,0);
+
+        const sameDayEnd = new Date(reservationDate);
+        sameDayEnd.setHours(23,59,59,999);
+
+        const reservations = await Reservation.find({
             tableId,
             date: {
-                $gte: oneHourBefore,
-                $lt: oneHourAfter,
+                $gte: sameDayStart,
+                $lte: sameDayEnd
             },
-            status: { $in: ['PENDING', 'CONFIRMED'] },
+            status: {
+                $in: ['PENDING', 'CONFIRMED']
+            }
         });
 
+        const newReservationMinutes = parseInt(hours) * 60 + parseInt(minutes);
+
+        const conflictingReservation = reservations.find((r) => {
+            const [existingHour, existingMinute] = r.time.split(':');
+
+            const existingMinutes = parseInt(existingHour) * 60 + parseInt(existingMinute);
+
+            return Math.abs(existingMinutes - newReservationMinutes) < 60;
+            });
+
         if (conflictingReservation) {
-            return res.status(409).json({ 
-                success: false, 
-                message: `No disponible. Hay una reservación conflictiva. Hora reservada: ${conflictingReservation.time}. Intenta con una diferencia de al menos 1 hora.` 
+            return res.status(409).json({
+                success: false,
+                message: `No disponible. Existe una reservación cerca de las ${conflictingReservation.time}`
             });
         }
 
         const reservation = await Reservation.create({
-            userId: req.user.id,
+            userId: req.user.id || req.user._id,
             restaurantId,
             tableId,
-            date: dateTime,
+            date: reservationDate,
             time,
             guests,
             notes,
             status: 'CONFIRMED'
         });
-        
+
         await Table.findByIdAndUpdate(
             tableId,
             { status: 'RESERVED' }
@@ -97,15 +130,13 @@ export const createReservation = async (req, res) => {
             success: true,
             data: reservation
         });
+
     } catch (err) {
-        if (err.code === 11000) {
-            return res.status(409).json({ success: false, 
-            message: 'Ya existe una reservación activa para esa mesa en esa fecha y hora' 
-            });
-        }
-        res.status(500).json({ 
-            success: false, 
-            message: err.message 
+        console.log(err);
+
+        res.status(500).json({
+            success: false,
+            message: err.message
         });
     }
 };
@@ -178,29 +209,29 @@ export const getReservationsByRestaurant = async (req, res) => {
     }
 };
 
-
 export const getReservationById = async (req, res) => {
     try {
         const reservation = await Reservation.findById(req.params.id)
             .populate('restaurantId', 'name')
             .populate('tableId', 'number capacity');
+
         if (!reservation) 
             return res.status(404).json({ 
                 success: false, 
                 message: 'Reservación no encontrada' 
             });
 
-    if (req.user.role !== 'PLATFORM_ADMIN' && req.user.role !== 'RESTAURANT_ADMIN' && reservation.userId !== req.user.id) {
-        return res.status(403).json({ 
-            success: false, 
-            message: 'No tienes permisos' 
-        });
-    }
+        if (req.user.role !== 'PLATFORM_ADMIN' && req.user.role !== 'RESTAURANT_ADMIN' && reservation.userId !== req.user.id) {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'No tienes permisos' 
+            });
+        }
 
-    res.json({ 
-        success: true, 
-        data: reservation 
-    });
+        res.json({ 
+            success: true, 
+            data: reservation 
+        });
     } catch (err) {
         res.status(500).json({ 
             success: false, 
@@ -212,66 +243,136 @@ export const getReservationById = async (req, res) => {
 export const updateReservation = async (req, res) => {
     try {
         const reservation = await Reservation.findById(req.params.id);
-        if (!reservation) 
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Reservación no encontrada' 
-            });
 
-        if (reservation.status !== 'PENDING') {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Solo se pueden modificar reservaciones pendientes' 
+        if (!reservation) {
+            return res.status(404).json({
+                success: false,
+                message: 'Reservación no encontrada'
             });
         }
 
-    const { date, time, guests, notes } = req.body;
+        const {tableId, date, time, guests, notes} = req.body;
 
-    if (date || time) {
-        const newDate = date || reservation.date;
-        const newTime = time || reservation.time;
-        
-        const dateObj = typeof newDate === 'string' ? new Date(newDate) : newDate;
-        const [hours, minutes] = newTime.split(':');
-        const newDateTime = new Date(dateObj);
-        newDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        const [year, month, day] = date.split('-');
 
-        const oneHourBefore = new Date(newDateTime.getTime() - 60 * 60 * 1000);
-        const oneHourAfter = new Date(newDateTime.getTime() + 60 * 60 * 1000);
+        const reservationDate = new Date(
+            year,
+            month - 1,
+            day
+        );
 
-        const conflictingReservation = await Reservation.findOne({
-            _id: { $ne: reservation._id },
-            tableId: reservation.tableId,
+        const [hours, minutes] = time.split(':');
+
+        reservationDate.setHours(
+            parseInt(hours),
+            parseInt(minutes),
+            0,
+            0
+        );
+
+        const table = await Table.findById(
+            tableId || reservation.tableId
+        );
+
+        if (!table) {
+            return res.status(404).json({
+                success: false,
+                message: 'Mesa no encontrada'
+            });
+        }
+
+        if (guests > table.capacity) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    `La mesa tiene capacidad para ${table.capacity} personas`
+            });
+        }
+
+        const sameDayStart = new Date(reservationDate);
+        sameDayStart.setHours(0,0,0,0);
+
+        const sameDayEnd = new Date(reservationDate);
+        sameDayEnd.setHours(23,59,59,999);
+
+        const reservations = await Reservation.find({
+            tableId: tableId || reservation.tableId,
             date: {
-                $gte: oneHourBefore,
-                $lt: oneHourAfter,
+                $gte: sameDayStart,
+                $lte: sameDayEnd
             },
-            status: { $in: ['PENDING', 'CONFIRMED'] },
+            status: {
+                $in: ['PENDING', 'CONFIRMED']
+            }
+        });
+
+        const newReservationMinutes = parseInt(hours) * 60 + parseInt(minutes);
+
+        const conflictingReservation = reservations.find((r) => {
+            if (
+                r._id.toString() ===
+                reservation._id.toString()
+            ) {
+                return false;
+            }
+
+            const [existingHour, existingMinute] = r.time.split(':');
+
+            const existingMinutes = parseInt(existingHour) * 60 + parseInt(existingMinute);
+
+            return Math.abs(
+                existingMinutes - newReservationMinutes
+            ) < 60;
         });
 
         if (conflictingReservation) {
-            return res.status(409).json({ 
-                success: false, 
-                message: `No disponible. Hay una reservación conflictiva. Hora reservada: ${conflictingReservation.time}. Intenta con una diferencia de al menos 1 hora.` 
+            return res.status(409).json({
+                success: false,
+                message:
+                    `No disponible. Existe una reservación cerca de las ${conflictingReservation.time}`
             });
         }
-        if (date) reservation.date = newDateTime;
-        if (time) reservation.time = time;
+
+        if (
+            tableId &&
+            tableId !== reservation.tableId.toString()
+        ) {
+
+        await Table.findByIdAndUpdate(
+            reservation.tableId,
+            { status: 'AVAILABLE' }
+        );
+
+        await Table.findByIdAndUpdate(
+            tableId,
+            { status: 'RESERVED' }
+        );
+
+        reservation.tableId = tableId;
     }
-    
-        if (guests) reservation.guests = guests;
-        if (notes !== undefined) reservation.notes = notes;
+
+        reservation.date = reservationDate;
+        reservation.time = time;
+        reservation.guests = guests;
+        reservation.notes = notes;
+
         await reservation.save();
 
-        res.json({ 
-            success: true, 
-            message: 'Reservación actualizada', 
-            data: reservation 
+        const updatedReservation =
+            await Reservation.findById(reservation._id)
+                .populate('tableId')
+                .populate('userId');
+
+        res.json({
+            success: true,
+            data: updatedReservation
         });
     } catch (err) {
-        res.status(500).json({ 
-            success: false, 
-            message: err.message 
+        console.log(err);
+
+        res.status(500).json({
+            success: false,
+            message: err.message
         });
     }
 };
@@ -283,6 +384,13 @@ export const cancelReservation = async (req, res) => {
             success: false, 
             message: 'Reservación no encontrada' 
         });
+
+        if (reservation.status === 'COMPLETED') {
+            return res.status(400).json({
+                success: false,
+                message: 'No se puede cancelar una reservación completada'
+            });
+        }
 
         if (reservation.status === 'CANCELLED') {
             return res.status(400).json({ 
@@ -320,10 +428,17 @@ export const confirmReservation = async (req, res) => {
     try {
         const reservation = await Reservation.findById(req.params.id);
         if (!reservation) 
-            return res.status(404).json({ 
-                success: false, 
-                message: 'Reservación no encontrada' 
+        return res.status(404).json({ 
+            success: false, 
+            message: 'Reservación no encontrada' 
+        });
+
+        if (reservation.status !== 'PENDING') {
+            return res.status(400).json({
+                success: false,
+                message: 'Solo se pueden confirmar reservaciones pendientes'
             });
+        }
             
         if (reservation.status !== 'PENDING') {
             return res.status(400).json({ 
@@ -365,21 +480,185 @@ export const getReservationsForAdmin = async (req, res) => {
         }
 
         const userId = req.user?.id || req.user?._id;
-        if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
-        const restaurants = await Restaurant.find({ adminId: userId }).select('_id').lean();
-        const restaurantIds = restaurants.map(r => r._id);
+        if (!userId) 
+        return res.status(401).json({
+            message: 'Unauthorized' 
+        });
 
-        if (restaurantIds.length === 0) return res.json({ data: [] });
-
-        const reservations = await Reservation.find({ restaurantId: { $in: restaurantIds } })
-        .populate('userId', '-password') 
-        .populate('tableId')
+        const restaurants = await Restaurant.find({ 
+            adminId: userId 
+        })
+        .select('_id')
         .lean();
 
-        return res.json({ data: reservations });
+        const restaurantIds = restaurants.map(
+            r => r._id
+        );
+
+        if (restaurantIds.length === 0) {
+            return res.json({ 
+                data: [] 
+            });
+        }
+
+        const reservations = await Reservation.find({ 
+            restaurantId: { $in: restaurantIds } 
+        })
+        .populate('tableId')
+        .populate('userId', 'username email name surname')
+        .sort({ date: -1 })
+        .lean();
+
+        const formattedReservations = reservations.map((reservation) => ({
+            ...reservation,
+            userName:
+                reservation.userId?.username ||
+                `${reservation.userId?.name || ''} ${reservation.userId?.surname || ''}`.trim() ||
+                'Usuario',
+            userEmail:
+                reservation.userId?.email || 'Sin correo'
+        }));
+
+        return res.json({ 
+            data: formattedReservations 
+        });
     } catch (err) {
         console.error('getReservationsForAdmin error', err);
-        return res.status(500).json({ message: 'Internal server error' });
+
+        return res.status(500).json({ 
+            message: 'Internal server error' 
+        });
+    }
+};
+
+export const checkReservationAvailability = async (req, res) => {
+    try {
+        const {tableId, date, time, reservationId} = req.body;
+
+        if (!tableId || !date || !time) {
+            return res.status(400).json({
+                success: false,
+                message: 'Datos incompletos'
+            });
+        }
+
+        const [year, month, day] = date.split('-');
+
+        const reservationDate = new Date(
+            year,
+            month - 1,
+            day
+        );
+
+        const [hours, minutes] = time.split(':');
+
+        reservationDate.setHours(
+            parseInt(hours),
+            parseInt(minutes),
+            0,
+            0
+        );
+
+        const sameDayStart = new Date(reservationDate);
+        sameDayStart.setHours(0,0,0,0);
+
+        const sameDayEnd = new Date(reservationDate);
+        sameDayEnd.setHours(23,59,59,999);
+
+        const reservations = await Reservation.find({
+            tableId,
+            date: {
+                $gte: sameDayStart,
+                $lte: sameDayEnd
+            },
+            status: {
+                $in: ['PENDING', 'CONFIRMED']
+            }
+        });
+
+        const newReservationMinutes = parseInt(hours) * 60 + parseInt(minutes);
+
+        const conflictingReservation =
+            reservations.find((r) => {
+                if (
+                    reservationId &&
+                    r._id.toString() === reservationId
+                ) {
+                    return false;
+                }
+
+                const [existingHour, existingMinute] =
+                    r.time.split(':');
+
+                const existingMinutes =
+                    parseInt(existingHour) * 60 +
+                    parseInt(existingMinute);
+
+                return Math.abs(
+                    existingMinutes - newReservationMinutes
+                ) < 60;
+            });
+
+        if (conflictingReservation) {
+            return res.status(409).json({
+                success: false,
+                message:
+                    `Mesa ocupada cerca de las ${conflictingReservation.time}`
+            });
+        }
+
+        res.json({
+            success: true,
+            available: true
+        });
+    } catch (error) {
+        console.log(error);
+
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+export const completeReservation = async (req, res) => {
+    try {
+        const reservation = await Reservation.findById(req.params.id);
+
+        if (!reservation) {
+            return res.status(404).json({
+                success: false,
+                message: 'Reservación no encontrada'
+            });
+        }
+
+        if (reservation.status !== 'CONFIRMED') {
+            return res.status(400).json({
+                success: false,
+                message: 'Solo se pueden completar reservaciones confirmadas'
+            });
+        }
+
+        reservation.status = 'COMPLETED';
+        reservation.completedAt = new Date();
+        await reservation.save();
+
+        await Table.findByIdAndUpdate(
+            reservation.tableId,
+            { status: 'AVAILABLE' }
+        );
+
+        return res.json({
+            success: true,
+            message: 'Reservación completada',
+            data: reservation
+        });
+
+    } catch (err) {
+        return res.status(500).json({
+            success: false,
+            message: err.message
+        });
     }
 };
