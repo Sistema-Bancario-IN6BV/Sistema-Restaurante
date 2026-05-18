@@ -380,10 +380,13 @@ export const updateReservation = async (req, res) => {
 export const cancelReservation = async (req, res) => {
     try {
         const reservation = await Reservation.findById(req.params.id);
-        if (!reservation) return res.status(404).json({ 
-            success: false, 
-            message: 'Reservación no encontrada' 
-        });
+
+        if (!reservation) {
+            return res.status(404).json({
+                success: false,
+                message: 'Reservación no encontrada'
+            });
+        }
 
         if (reservation.status === 'COMPLETED') {
             return res.status(400).json({
@@ -392,34 +395,51 @@ export const cancelReservation = async (req, res) => {
             });
         }
 
+        const userId = req.user.id || req.user._id;
+
+        if (
+            req.user.role === 'CUSTOMER' &&
+            reservation.userId != userId
+        ) {
+            return res.status(403).json({
+                success: false,
+                message: 'No tienes permisos'
+            });
+        }
+
         if (reservation.status === 'CANCELLED') {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Ya está cancelada' 
+            return res.status(400).json({
+                success: false,
+                message: 'Ya está cancelada'
             });
         }
 
         if (reservation.status === 'CONFIRMED') {
             await Table.findByIdAndUpdate(
-                reservation.tableId, 
+                reservation.tableId,
                 { status: 'AVAILABLE' }
             );
         }
 
         reservation.status = 'CANCELLED';
-        reservation.cancelReason = req.body.reason || '';
+
+        reservation.cancelReason = '';
+
         reservation.cancelledAt = new Date();
+
         await reservation.save();
 
-        res.json({ 
-            success: true, 
-            message: 'Reservación cancelada', 
-            data: reservation 
+        res.json({
+            success: true,
+            message: 'Reservación cancelada',
+            data: reservation
         });
     } catch (err) {
-        res.status(500).json({ 
+        console.log(err);
+
+        res.status(500).json({
             success: false,
-            message: err.message 
+            message: err.message
         });
     }
 };
