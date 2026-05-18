@@ -256,6 +256,72 @@ export const cancelOrder = async (req, res) => {
   }
 };
 
+// PATCH /orders/:id
+export const updateOrder = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, message: 'Pedido no encontrado' });
+
+    // Only owner or platform admin can update
+    if (order.userId.toString() !== req.user.id && req.user.role !== 'PLATFORM_ADMIN') {
+      return res.status(403).json({ success: false, message: 'No tienes permisos para actualizar este pedido' });
+    }
+
+    // Allow updates only when pending
+    if (order.status !== 'PENDING') {
+      return res.status(400).json({ success: false, message: 'Solo se pueden actualizar pedidos pendientes' });
+    }
+
+    const restaurantId = req.body.restaurantId || order.restaurantId;
+
+    // If items provided, validate them and recalculate totals
+    const items = req.body.items;
+    let populatedItems = order.items;
+    let totalAmount = order.total || 0;
+
+    if (items && Array.isArray(items)) {
+      populatedItems = [];
+      totalAmount = 0;
+
+      for (const item of items) {
+        const menuItemId = item.menuItemId || item.menuItem;
+        const menuItem = await MenuItem.findOne({ _id: menuItemId, restaurantId, active: true, available: true });
+        if (!menuItem) {
+          return res.status(404).json({ success: false, message: `Plato ${menuItemId} no encontrado o no disponible` });
+        }
+
+        const unitPrice = menuItem.price;
+        const quantity = item.quantity || 1;
+        const subtotal = unitPrice * quantity;
+
+        populatedItems.push({
+          menuItemId: menuItem._id,
+          name: menuItem.name,
+          quantity,
+          unitPrice,
+          subtotal,
+          notes: item.notes,
+        });
+
+        totalAmount += subtotal;
+      }
+    }
+
+    // Update allowed fields
+    order.type = req.body.type || order.type;
+    order.tableId = req.body.tableId !== undefined ? req.body.tableId : order.tableId;
+    order.deliveryAddress = req.body.deliveryAddress !== undefined ? req.body.deliveryAddress : order.deliveryAddress;
+    order.items = populatedItems;
+    order.total = totalAmount;
+
+    await order.save();
+
+    res.json({ success: true, message: 'Pedido actualizado', data: order });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // DELETE /orders/:id (soft delete)
 export const deleteOrder = async (req, res) => {
   try {

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   createOrder, getMyOrders, getOrdersByRestaurant,
-  getOrderById, updateOrderStatus, cancelOrder, deleteOrder,
+  getOrderById, updateOrder, updateOrderStatus, cancelOrder, deleteOrder,
 } from './order.controller.js';
 import {
   validateCreateOrder,
@@ -19,6 +19,7 @@ router.post('/create', validateCreateOrder, createOrder);
 router.get('/my', validateGetMyOrders, getMyOrders);
 router.get('/restaurant/:id', validateGetOrdersByRestaurant, getOrdersByRestaurant);
 router.get('/:id', validateGetOrderById, getOrderById);
+router.patch('/:id', validateGetOrderById, updateOrder);
 router.patch('/:id/status', validateOrderStatus, updateOrderStatus);
 router.patch('/:id/cancel', validateCancelOrder, cancelOrder);
 router.delete('/:id', validateDeleteOrder, deleteOrder);
