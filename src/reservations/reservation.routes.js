@@ -10,12 +10,12 @@ import { validateJWT } from '../../middlewares/validate-JWT.js';
 const router = Router();
 
 router.post('/create', validateJWT, validateCreateReservation, createReservation);
-router.get('/my', validateGetMyReservations, getMyReservations);
+router.get('/my', validateJWT, validateGetMyReservations, getMyReservations);
 router.get('/restaurant/:id', validateGetReservationsByRestaurant, getReservationsByRestaurant);
 router.get('/admin', validateJWT, getReservationsForAdmin);
 router.get('/:id', validateGetReservationById, getReservationById);
 router.put('/:id', validateJWT, validateUpdateReservation, updateReservation);
-router.patch('/:id/cancel', validateJWT, validateCancelReservation, cancelReservation);
+router.patch('/:id/cancel', validateJWT, cancelReservation);
 router.patch('/:id/confirm', validateJWT, validateConfirmReservation, confirmReservation);
 router.post('/check-availability', checkReservationAvailability);
 router.patch('/:id/complete', completeReservation);
