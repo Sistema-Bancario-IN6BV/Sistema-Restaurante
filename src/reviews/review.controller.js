@@ -2,197 +2,129 @@
 
 import Review from './review.model.js';
 import Restaurant from '../restaurants/restaurant.model.js';
+import Order from '../orders/order.model.js';
+import { cloudinary } from '../../middlewares/file-uploader.js';
 
 export const createReview = async (req, res) => {
     try {
-        const { restaurant, rating, comment } = req.body;
+        const { orderId, restaurantId, rating, comment, subRatings } = req.body;
 
-        // ✔ Validar restaurante correctamente
-        const restaurantExists = await Restaurant.findOne({
-            _id: restaurant,
-            isActive: true
+        // Validar que la orden existe, pertenece al usuario y fue entregada
+        const order = await Order.findOne({
+            _id: orderId,
+            userId: req.user.id,
+            restaurantId,
+            status: 'DELIVERED',
         });
-
-        if (!restaurantExists) {
-            return res.status(400).json({
-                success: false,
-                message: 'El restaurante no existe o está inactivo'
-            });
+        if (!order) {
+            return res.status(400).json({ success: false, message: 'Solo puedes reseñar órdenes entregadas que te pertenecen' });
         }
 
-        const review = new Review({
-            ...data,
-            user: req.user.id,  
-            restaurant,
+        const review = await Review.create({
+            userId: req.user.id,
+            restaurantId,
+            orderId,
             rating,
-            comment
+            comment,
+            subRatings,
+            photos: req.files ? req.files.map(f => f.path || f.secure_url) : [],
         });
 
-        await review.save();
-
-        res.status(201).json({
-            success: true,
-            message: 'Reseña creada exitosamente',
-            data: review
-        });
-
-    } catch (error) {
-        if (error.code === 11000) {
-            return res.status(400).json({
-                success: false,
-                message: 'Ya has realizado una reseña para este restaurante'
-            });
+        res.status(201).json({ success: true, data: review });
+    } catch (err) {
+        if (err.code === 11000) {
+            return res.status(409).json({ success: false, message: 'Ya existe una reseña para esta orden' });
         }
-
-        res.status(500).json({
-            success: false,
-            message: 'Error al crear la reseña',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: err.message });
     }
 };
 
-export const getReviews = async (req, res) => {
+export const getReviewsByRestaurant = async (req, res) => {
     try {
-        const { restaurant, page = 1, limit = 10 } = req.query;
+        const { page = 1, limit = 10, sort = '-createdAt' } = req.query;
+        const filter = { restaurantId: req.params.id, active: true, visible: true };
+        const skip = (parseInt(page) - 1) * parseInt(limit);
 
-        const pageNumber = parseInt(page);
-        const limitNumber = parseInt(limit);
+        const [reviews, total] = await Promise.all([
+            Review.find(filter)
+                .sort(sort)
+                .skip(skip)
+                .limit(parseInt(limit)),
+            Review.countDocuments(filter),
+        ]);
 
-        const filter = { isActive: true };
+        // Distribución de calificaciones
+        const distribution = await Review.aggregate([
+            { $match: { restaurantId: reviews[0]?.restaurantId || null, active: true } },
+            { $group: { _id: '$rating', count: { $sum: 1 } } },
+            { $sort: { _id: -1 } },
+        ]);
 
-        if (restaurant) {
-            filter.restaurant = restaurant;
-        }
+        const restaurant = await Restaurant.findById(req.params.id).select('rating');
 
-        const reviews = await Review.find(filter)
-            .populate('user', 'name')
-            .populate('restaurant', 'name')
-            .limit(limitNumber)
-            .skip((pageNumber - 1) * limitNumber)
-            .sort({ createdAt: -1 });
-
-        const total = await Review.countDocuments(filter);
-
-        res.status(200).json({
+        res.json({
             success: true,
-            total,
-            page: pageNumber,
-            pages: Math.ceil(total / limitNumber),
-            data: reviews
+            data: reviews,
+            rating: restaurant?.rating,
+            distribution,
+            pagination: { total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) },
         });
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al obtener reseñas',
-            error: error.message
-        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
 };
 
 export const getReviewById = async (req, res) => {
     try {
-        const { id } = req.params;
-
-        const review = await Review.findById(id)
-            .populate('user', 'name')
-            .populate('restaurant', 'name');
-
-        if (!review || !review.isActive) {
-            return res.status(404).json({
-                success: false,
-                message: 'Reseña no encontrada'
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            data: review
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al obtener la reseña',
-            error: error.message
-        });
-    }
-}
-
-export const updateReview = async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const review = await Review.findById(id);
-
-        if (!review || !review.isActive) {
-            return res.status(404).json({
-                success: false,
-                message: 'Reseña no encontrada'
-            });
-        }
-
-        if (review.user.toString() !== req.user.uid) {
-            return res.status(403).json({
-                success: false,
-                message: 'No tienes permiso para modificar esta reseña'
-            });
-        }
-
-        const updatedReview = await Review.findByIdAndUpdate(
-            id,
-            req.body,
-            { new: true, runValidators: true }
-        );
-
-        res.status(200).json({
-            success: true,
-            message: 'Reseña actualizada exitosamente',
-            data: updatedReview
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al actualizar la reseña',
-            error: error.message
-        });
+        const review = await Review.findById(req.params.id)
+            .populate('restaurantId', 'name');
+        if (!review) return res.status(404).json({ success: false, message: 'Reseña no encontrada' });
+        res.json({ success: true, data: review });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
 };
 
-export const changeReviewStatus = async (req, res) => {
+export const replyToReview = async (req, res) => {
     try {
-        const { id } = req.params;
+        const review = await Review.findByIdAndUpdate(
+            req.params.id,
+            { adminReply: req.body.reply },
+            { new: true }
+        );
+        if (!review) return res.status(404).json({ success: false, message: 'Reseña no encontrada' });
+        res.json({ success: true, message: 'Respuesta agregada', data: review });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
 
-        const review = await Review.findById(id);
+export const deleteReview = async (req, res) => {
+    try {
+        const review = await Review.findById(req.params.id);
+        if (!review) return res.status(404).json({ success: false, message: 'Reseña no encontrada' });
 
-        if (!review || !review.isActive) {
-            return res.status(404).json({
-                success: false,
-                message: 'Reseña no encontrada'
-            });
+        // Solo el autor o admin puede eliminar
+        const isOwner = review.userId === req.user.id;
+        const isAdmin = req.user.role === 'RESTAURANT_ADMIN' || req.user.role === 'PLATFORM_ADMIN';
+        if (!isOwner && !isAdmin) {
+            return res.status(403).json({ success: false, message: 'No autorizado' });
         }
 
-        if (review.user.toString() !== req.user.uid) {
-            return res.status(403).json({
-                success: false,
-                message: 'No tienes permiso para eliminar esta reseña'
+        if (review.photos?.length) {
+            const deleteOps = review.photos.map(url => {
+                const parts = url.split('/');
+                const publicId = parts.slice(-2).join('/').replace(/\.[^.]+$/, '');
+                return cloudinary.uploader.destroy(publicId).catch(() => { });
             });
+            await Promise.all(deleteOps);
         }
 
-        review.isActive = false;
+        review.active = false;
+        review.visible = false;
         await review.save();
-
-        res.status(200).json({
-            success: true,
-            message: 'Reseña eliminada exitosamente'
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al eliminar la reseña',
-            error: error.message
-        });
+        res.json({ success: true, message: 'Reseña eliminada' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
 };

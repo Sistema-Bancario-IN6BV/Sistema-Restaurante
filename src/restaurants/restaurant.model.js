@@ -1,57 +1,92 @@
 'use strict';
+import mongoose from 'mongoose';
 
-import mongoose from "mongoose";
-
-const restaurantSchema = mongoose.Schema(
-{
-    name: {
-        type: String,
-        required: [true, 'El nombre es requerido'],
-        trim: true,
-        maxLength: [150, 'El nombre no puede exceder 150 caracteres']
+const Schema = mongoose.Schema(
+    {
+        name: {
+            type: String,
+            required: [true, 'El nombre del restaurante es requerido'],
+            trim: true,
+            minlength: [2, 'El nombre debe tener minimo 2 caracteres'],
+            maxlength: [100, 'El nombre debe tener maximo 100 caracteres'],
+            unique: true
+        },
+        address: {
+            street: String,
+            city: {
+                type: String,
+                required: [true, 'La ciudad es requerida']
+            },
+            state: String,
+            zipCode: String
+        },
+        phone: String,
+        email: {
+            type: String,
+            lowercase: true
+        },
+        category: {
+            type: String,
+            enum: [
+                'ITALIANA',
+                'MEXICANA',
+                'JAPONESA',
+                'CHINA',
+                'FRANCESA',
+                'AMERICANA',
+                'GUATEMALTECA',
+                'MARISCOS',
+                'VEGETARIANA',
+                'VEGANA',
+                'PARRILLA',
+                'PIZZERIA',
+                'CAFE',
+                'SUSHI',
+                'TAPAS',
+                'FUSION',
+                'PERUANA',
+                'OTRA'
+            ],
+            required: [true, 'La categoria es requerida']
+        },
+        avgPrice: {
+            type: Number,
+            min: [0, 'El precio no puede ser negativo']
+        },
+        schedule: String,
+        rating: {
+            average: {
+                type: Number,
+                default: 0
+            },
+            count: {
+                type: Number,
+                default: 0
+            }
+        },
+        photo: {
+            type: String,
+            default: null,
+        },
+        tags: [String],
+        adminId: {
+            type: String,
+            required: [true, 'El administrador del restaurante es requerido']
+        },
+        active: {
+            type: Boolean,
+            default: true
+        }
     },
-    description: {
-        type: String,
-        trim: true,
-        maxLength: [500, 'La descripción no puede exceder 500 caracteres']
-    },
-    address: {
-        type: String,
-        required: [true, 'La dirección es requerida'],
-        trim: true
-    },
-    category: {
-        type: String,
-        trim: true
-    },
-    averagePrice: {
-        type: Number,
-        min: [0, 'El precio promedio no puede ser negativo']
-    },
-    contactEmail: {
-        type: String,
-        trim: true
-    },
-    contactPhone: {
-        type: String,
-        trim: true
-    },
-    photo: {
-        type: String,
-        default: null
-    },
-    isActive: {
-        type: Boolean,
-        default: true
+    {
+        timestamps: true,
+        versionKey: false
     }
-},
-{
-    timestamps: true,
-    versionKey: false
-}
 );
 
-restaurantSchema.index({ isActive: 1 });
-restaurantSchema.index({ category: 1 });
+Schema.index({ active: 1 });
+Schema.index({ 'address.city': 1 });
+Schema.index({ category: 1 });
+Schema.index({ 'rating.average': -1 });
 
-export default mongoose.model('Restaurant', restaurantSchema);
+export default mongoose.model('Restaurant', Schema);

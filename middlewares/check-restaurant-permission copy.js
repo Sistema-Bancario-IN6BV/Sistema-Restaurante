@@ -1,17 +1,6 @@
 'use strict';
 import Restaurant from '../src/restaurants/restaurant.model.js';
 
-/**
- * Middleware genérico para validar permisos de restaurante
- * - PLATFORM_ADMIN: acceso total
- * - RESTAURANT_ADMIN: solo su propio restaurante
- * 
- * Uso: checkEntityRestaurantPermission(Model, 'restaurantIdField', 'idParamName')
- * 
- * @param {Model|string} ModelOrName - El modelo mongoose o nombre del modelo 
- * @param {string} restaurantIdField - Campo en el documento que contiene el restaurantId (defecto: 'restaurantId')
- * @param {string} idParamName - Nombre del parámetro en la ruta (defecto: 'id')
- */
 export const checkEntityRestaurantPermission = (ModelOrName, restaurantIdField = 'restaurantId', idParamName = 'id') => {
     return async (req, res, next) => {
         try {
@@ -22,6 +11,7 @@ export const checkEntityRestaurantPermission = (ModelOrName, restaurantIdField =
                 });
             }
 
+            // PLATFORM_ADMIN tiene acceso a todo
             if (req.user.role === 'PLATFORM_ADMIN') {
                 return next();
             }
@@ -32,6 +22,7 @@ export const checkEntityRestaurantPermission = (ModelOrName, restaurantIdField =
                 Model = mongoose.model(ModelOrName);
             }
 
+            // Obtener el ID de la entidad
             const entityId = req.params[idParamName] || req.body[idParamName];
 
             if (!entityId) {
@@ -41,6 +32,7 @@ export const checkEntityRestaurantPermission = (ModelOrName, restaurantIdField =
                 });
             }
 
+            // Buscar la entidad
             const entity = await Model.findById(entityId);
 
             if (!entity) {
@@ -50,6 +42,7 @@ export const checkEntityRestaurantPermission = (ModelOrName, restaurantIdField =
                 });
             }
 
+            // Obtener el restaurantId
             const restaurantId = entity[restaurantIdField];
 
             if (!restaurantId) {
@@ -59,6 +52,7 @@ export const checkEntityRestaurantPermission = (ModelOrName, restaurantIdField =
                 });
             }
 
+            // Buscar el restaurante
             const restaurant = await Restaurant.findById(restaurantId);
 
             if (!restaurant) {
@@ -68,7 +62,9 @@ export const checkEntityRestaurantPermission = (ModelOrName, restaurantIdField =
                 });
             }
 
+            // RESTAURANT_ADMIN solo puede modificar su propio restaurante
             if (req.user.role === 'RESTAURANT_ADMIN') {
+                // Compatibilidad: O está en adminIds O era el adminId original
                 const hasPermission = (restaurant.adminIds && restaurant.adminIds.includes(req.user.id)) || restaurant.adminId === req.user.id;
                 
                 if (!hasPermission) {
@@ -80,6 +76,7 @@ export const checkEntityRestaurantPermission = (ModelOrName, restaurantIdField =
                 return next();
             }
 
+            // Otros roles no tienen permisos
             res.status(403).json({
                 success: false,
                 message: 'Rol no autorizado para modificar este recurso'
@@ -95,10 +92,8 @@ export const checkEntityRestaurantPermission = (ModelOrName, restaurantIdField =
     };
 };
 
+
 export const checkRestaurantPermission = (idParamName = 'id') => {
-    // Este middleware se usa en rutas tipo: /:id (donde :id es el ID del EVENTO)
-    // Por eso NO debe intentar leer directamente un restaurantId desde params.
-    // En su lugar valida contra el restaurantId del evento.
     return async (req, res, next) => {
         try {
             if (!req.user) {
@@ -108,66 +103,50 @@ export const checkRestaurantPermission = (idParamName = 'id') => {
                 });
             }
 
+            // PLATFORM_ADMIN tiene acceso a todo
             if (req.user.role === 'PLATFORM_ADMIN') {
                 return next();
             }
 
-            const entityId = req.params[idParamName] || req.body[idParamName];
-
-            if (!entityId) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'ID de la entidad es requerido'
-                });
-            }
-
-            // Lazy import para evitar dependencia circular
-            const { default: Event } = await import('../src/events/event.model.js');
-
-            const event = await Event.findById(entityId);
-
-            if (!event) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Evento no encontrado'
-                });
-            }
-
-            const restaurantId = event.restaurantId;
+            // Obtener el ID del restaurante
+            const restaurantId = req.params[idParamName] || req.body[idParamName];
 
             if (!restaurantId) {
                 return res.status(400).json({
                     success: false,
-                    message: 'El restaurante no está asociado a este evento'
+                    message: 'ID del restaurante es requerido'
                 });
             }
 
+            // Buscar el restaurante
             const restaurant = await Restaurant.findById(restaurantId);
 
             if (!restaurant) {
                 return res.status(404).json({
                     success: false,
-                    message: 'Restaurante asociado no encontrado'
+                    message: 'Restaurante no encontrado'
                 });
             }
 
+            // RESTAURANT_ADMIN solo puede modificar su propio restaurante
             if (req.user.role === 'RESTAURANT_ADMIN') {
                 const hasPermission = (restaurant.adminIds && restaurant.adminIds.includes(req.user.id)) || restaurant.adminId === req.user.id;
 
                 if (!hasPermission) {
                     return res.status(403).json({
                         success: false,
-                        message: 'No tiene permisos para modificar este evento. Solo puede modificar eventos de su propio restaurante.'
+                        message: 'No tiene permisos para modificar este restaurante. Solo puede modificar su propio restaurante.'
                     });
                 }
-
                 return next();
             }
 
+            // Otros roles no tienen permisos
             res.status(403).json({
                 success: false,
-                message: 'Rol no autorizado para modificar eventos'
+                message: 'Rol no autorizado para modificar restaurantes'
             });
+
         } catch (error) {
             res.status(500).json({
                 success: false,
@@ -179,15 +158,6 @@ export const checkRestaurantPermission = (idParamName = 'id') => {
 };
 
 
-/**
- * Middleware para validar permisos al crear entidades
- * - PLATFORM_ADMIN: puede crear en cualquier restaurante
- * - RESTAURANT_ADMIN: solo puede crear en su propio restaurante
- * 
- * Valida el restaurantId proporcionado en el body
- * 
- * @param {string} restaurantIdFieldInBody - Nombre del campo en body que contiene restaurantId
- */
 export const checkCreateRestaurantPermission = (restaurantIdFieldInBody = 'restaurantId') => {
     return async (req, res, next) => {
         try {
@@ -198,10 +168,12 @@ export const checkCreateRestaurantPermission = (restaurantIdFieldInBody = 'resta
                 });
             }
 
+            // PLATFORM_ADMIN puede crear en cualquier restaurante
             if (req.user.role === 'PLATFORM_ADMIN') {
                 return next();
             }
 
+            // Obtener el restaurantId del body
             const restaurantId = req.body[restaurantIdFieldInBody];
 
             if (!restaurantId) {
@@ -211,6 +183,7 @@ export const checkCreateRestaurantPermission = (restaurantIdFieldInBody = 'resta
                 });
             }
 
+            // Buscar el restaurante
             const restaurant = await Restaurant.findById(restaurantId);
 
             if (!restaurant) {
@@ -220,6 +193,7 @@ export const checkCreateRestaurantPermission = (restaurantIdFieldInBody = 'resta
                 });
             }
 
+            // RESTAURANT_ADMIN solo puede crear en su propio restaurante
             if (req.user.role === 'RESTAURANT_ADMIN') {
                 const hasPermission = (restaurant.adminIds && restaurant.adminIds.includes(req.user.id)) || restaurant.adminId === req.user.id;
 
@@ -232,6 +206,7 @@ export const checkCreateRestaurantPermission = (restaurantIdFieldInBody = 'resta
                 return next();
             }
 
+            // Otros roles no tienen permisos
             res.status(403).json({
                 success: false,
                 message: 'Rol no autorizado para crear recursos'
