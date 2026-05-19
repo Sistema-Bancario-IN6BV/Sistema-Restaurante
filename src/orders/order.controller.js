@@ -107,6 +107,7 @@ export const getMyOrders = async (req, res) => {
     const [orders, total] = await Promise.all([
       Order.find(filter)
         .populate('restaurantId', 'name')
+        .populate('tableId', 'number')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
