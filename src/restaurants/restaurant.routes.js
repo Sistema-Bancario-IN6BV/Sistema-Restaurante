@@ -9,7 +9,8 @@ import {
     deleteRestaurant,
     uploadCover,
     addPhoto,
-    deletePhoto
+    deletePhoto,
+    getTablesByRestaurant
 } from './restaurant.controller.js';
 import {
     validateCreate,
@@ -34,5 +35,6 @@ router.get('/:id', validateGetById, getRestaurantById);
 router.put('/:id', validateUpdate, checkRestaurantPermission('id'), updateRestaurant);
 router.delete('/:id', validateUpdate, checkRestaurantPermission('id'), deleteRestaurant);
 router.post('/:id/cover', withImage, validateUpdate, checkRestaurantPermission('id'), uploadCover);
+router.get("/restaurant/:restaurantId", getTablesByRestaurant);
 
 export default router;
