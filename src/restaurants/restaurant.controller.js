@@ -29,29 +29,56 @@ export const createRestaurant = async (req, res) => {
 export const getRestaurants = async (req, res) => {
     try {
         const { page = 1, limit = 12, sort, adminId } = req.query;
-        
-        // Si es admin de restaurante (no platform), filtrar solo sus restaurantes
-        if (req.user?.role !== 'PLATFORM_ADMIN') {
-            const myRestaurants = await Restaurant.find({ adminId: req.user.id, active: true });
-            ok(res, myRestaurants, null, 200);
-            return;
+
+        if (req.user?.role === 'CUSTOMER') {
+            const restaurants = await Restaurant.find({
+                active: true
+            });
+
+            return ok(
+                res,
+                restaurants,
+                null,
+                200
+            );
         }
-        
-        // PLATFORM_ADMIN puede ver todos o filtrar por adminId
+
+        if (req.user?.role === 'RESTAURANT_ADMIN') {
+            const myRestaurants = await Restaurant.find({
+                adminId: req.user.id,
+                active: true
+            });
+
+            return ok(
+                res,
+                myRestaurants,
+                null,
+                200
+            );
+        }
+
         const filter = buildFilter(req.query);
-        if (adminId) {
-            filter.adminId = adminId;
-        }
+
+        if (adminId) {filter.adminId = adminId;}
+
         const sortOption = buildSort(sort);
 
-        const [records, total] = await Promise.all([
-            Restaurant.find(filter).limit(limit * 1).skip((page - 1) * limit).sort(sortOption),
-            Restaurant.countDocuments(filter)
-        ]);
-
+        const [records] =
+            await Promise.all([
+                Restaurant.find(filter)
+                    .limit(limit * 1)
+                    .skip(
+                        (page - 1) * limit
+                    )
+                    .sort(sortOption)
+            ]);
         ok(res, records, null, 200);
     } catch (error) {
-        handleError(res, error, 'Error al obtener restaurantes');
+        handleError(
+            res,
+            error,
+            'Error al obtener restaurantes'
+        );
     }
 };
 
