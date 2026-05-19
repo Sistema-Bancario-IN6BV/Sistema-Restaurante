@@ -10,14 +10,15 @@ import { helmetConfiguration } from './helmet-configuration.js';
 import { requestLimit } from '../middlewares/request-limit.js';
 import { errorHandler } from '../middlewares/handle-errors.js';
 import { setupSwagger } from './swagger.js';
-import eventsRoutes from '../src/events/event.routes.js';
+import restaurantRoutes from '../src/restaurants/restaurant.routes.js';
 import menuItemRoutes from '../src/menuItems/menuItem.routes.js';
+import tableRoutes from '../src/tables/table.routes.js';
+import reservationRoutes from '../src/reservations/reservation.routes.js';
 import orderRoutes from '../src/orders/order.routes.js';
-import orderDetailsRoutes from '../src/orderDetails/orderDetail.routes.js';
-import reservationsRoutes from '../src/reservations/reservation.routes.js';
-import restaurantsRoutes from '../src/restaurants/restaurant.routes.js';
+import invoiceRoutes from '../src/invoices/invoice.routes.js';
+import inventoryRoutes from '../src/inventory/inventory.routes.js';
+import eventRoutes from '../src/events/event.routes.js';
 import reviewRoutes from '../src/reviews/review.routes.js';
-import tablesRoutes from '../src/tables/table.routes.js';
 import reportRoutes from '../src/reports/report.routes.js';
 
 const BASE_PATH = '/Restaurante/v1';
@@ -46,14 +47,15 @@ const routes = (app) => {
         res.redirect(`${BASE_PATH}/docs`)
     })
 
-    app.use(`${BASE_PATH}/reviews`, reviewRoutes);
-    app.use(`${BASE_PATH}/events`, eventsRoutes);
-    app.use(`${BASE_PATH}/menuItems`, menuItemRoutes);
+   app.use(`${BASE_PATH}/restaurants`, restaurantRoutes);
+    app.use(`${BASE_PATH}/menu`, menuItemRoutes);
+    app.use(`${BASE_PATH}/tables`, tableRoutes);
+    app.use(`${BASE_PATH}/reservations`, reservationRoutes);
     app.use(`${BASE_PATH}/orders`, orderRoutes);
-    app.use(`${BASE_PATH}/orderDetails`, orderDetailsRoutes);
-    app.use(`${BASE_PATH}/reservations`, reservationsRoutes);
-    app.use(`${BASE_PATH}/restaurants`, restaurantsRoutes);
-    app.use(`${BASE_PATH}/tables`, tablesRoutes);
+    app.use(`${BASE_PATH}/invoices`, invoiceRoutes);
+    app.use(`${BASE_PATH}/inventory`, inventoryRoutes);
+    app.use(`${BASE_PATH}/events`, eventRoutes);
+    app.use(`${BASE_PATH}/reviews`, reviewRoutes);
     app.use(`${BASE_PATH}/reports`, reportRoutes);
 
     setupSwagger(app, BASE_PATH);
@@ -66,6 +68,14 @@ const routes = (app) => {
         })
     })
 
+    // Rutas de la aplicación
+    /*
+    app.use(`${BASE_PATH}/orders`, orderRoutes);
+    app.use(`${BASE_PATH}/order-details`, orderDetailRoutes);
+    app.use(`${BASE_PATH}/menu-items`, menuItemRoutes);
+    app.use(`${BASE_PATH}/restaurants`, restaurantRoutes);
+    */
+
     app.use((req, res) => {
         res.status(404).json({
             success: false,
@@ -77,7 +87,7 @@ const routes = (app) => {
 export const initServer = async () => {
     const app = express();
     const PORT = process.env.PORT;
-    app.set('trus proxy', 1);
+    app.set('trust proxy', 1);
 
     try {
         await dbConnection();

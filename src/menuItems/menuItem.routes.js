@@ -1,5 +1,3 @@
-'use strict';
-
 import { Router } from 'express';
 import {
     createMenuItemForRestaurantAdmin,
@@ -9,7 +7,9 @@ import {
     getMenuItemById,
     updateMenuItemForRestaurantAdmin,
     updateMenuItem,
-    changeMenuItemStatus
+    changeMenuItemStatus,
+    uploadMenuItemPhoto,
+    linkIngredients
 } from './menuItem.controller.js';
 
 import { uploadMenuItemImage } from '../../middlewares/file-uploader.js';
@@ -23,7 +23,10 @@ import {
     validateUpdateMenuItemRequest,
     validateGetMenuItemById,
     validateMenuItemStatusChange,
-    validateGetMenuItems
+    validateGetMenuItems,
+    validateUpdateMenuItemId,
+    validateUploadMenuItemPhotoId,
+    validateLinkIngredients
 } from '../../middlewares/menuItem-validators.js';
 
 const router = Router();
@@ -161,57 +164,18 @@ router.get(
  */
 
 router.put(
-    '/:id',
-    uploadMenuItemImage.single('photo'),
-    cleanUploaderFileOnFinish,
-    validateUpdateMenuItemRequest,
+    '/:itemId',
+    validateUpdateMenuItemId,
     updateMenuItem
 );
 
-/**
- * @openapi
- * /menuItems/{id}/activate:
- *   put:
- *     tags: [Menu Items]
- *     summary: Activar ítem
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Ítem activado
- */
-
 router.put(
-    '/:id/activate',
-    validateMenuItemStatusChange,
-    changeMenuItemStatus
+    '/:itemId/photo',
+    validateUploadMenuItemPhotoId,
+    uploadMenuItemImage.single('photo'),
+    uploadMenuItemPhoto
 );
 
-/**
- * @openapi
- * /menuItems/{id}/deactivate:
- *   put:
- *     tags: [Menu Items]
- *     summary: Desactivar ítem
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Ítem desactivado
- */
-
-router.put(
-    '/:id/deactivate',
-    validateMenuItemStatusChange,
-    changeMenuItemStatus
-);
+router.put('/:itemId/ingredients', validateLinkIngredients, linkIngredients);
 
 export default router;

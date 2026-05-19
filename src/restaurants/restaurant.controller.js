@@ -1,13 +1,20 @@
+'use strict';
 import Restaurant from './restaurant.model.js';
-import { cloudinary } from '../../middlewares/file-uploader.js'
+import Table from '../tables/table.model.js';
+import {
+    normalizeAdminIds, extractToken, validateAdminIds,
+    findOrFail, buildFilter, buildSort
+} from '../../helpers/restaurant.helper.js';
+import { ok, fail } from '../../helpers/response.helper.js';
+
+const handleError = (res, error, message, defaultStatus = 500) =>
+    fail(res, message, error.statusCode ?? defaultStatus, error.message);
 
 const normalizeTags = (tags) => {
     if (Array.isArray(tags)) return tags.map((tag) => String(tag).trim()).filter(Boolean);
     if (typeof tags !== 'string') return [];
-
     const raw = tags.trim();
     if (!raw) return [];
-
     if (raw.startsWith('[')) {
         try {
             const parsed = JSON.parse(raw);
@@ -16,7 +23,6 @@ const normalizeTags = (tags) => {
             // fall back to comma split
         }
     }
-
     return raw.split(',').map((tag) => tag.trim()).filter(Boolean);
 };
 
@@ -24,38 +30,20 @@ const normalizePhoto = (file) => file?.secure_url || file?.path || null;
 
 export const createRestaurant = async (req, res) => {
     try {
-<<<<<<< Updated upstream
-
-        const restaurantData = req.body;
-
-        if (req.file) {
-            restaurantData.photo = req.file.path;
-=======
         const data = normalizeAdminIds(req.body);
         data.tags = normalizeTags(data.tags);
 
         if (req.file) {
             data.photo = normalizePhoto(req.file);
->>>>>>> Stashed changes
         }
 
-        const restaurant = new Restaurant(restaurantData);
-        await restaurant.save();
-
-        res.status(201).json({
-            success: true,
-            message: 'Restaurante creado exitosamente',
-            data: restaurant
-        })
-
+        await validateAdminIds(data.adminIds, extractToken(req));
+        const record = await new Restaurant(data).save();
+        ok(res, record, 'Restaurante creado exitosamente', 201);
     } catch (error) {
-        res.status(400).json({
-            success: false,
-            message: 'Error al crear el restaurante',
-            error: error.message
-        })
+        handleError(res, error, 'Error al crear restaurante', 400);
     }
-}
+};
 
 export const createRestaurantAdmin = async (req, res) => {
     try {
@@ -84,32 +72,13 @@ export const createRestaurantAdmin = async (req, res) => {
 
 export const getRestaurantsAdmin = async (req, res) => {
     try {
-        const {
-            page = 1,
-            limit = 10,
-            name,
-            category,
-            city,
-            isActive
-        } = req.query;
+        const { page = 1, limit = 10, name, category, city, isActive } = req.query;
 
         const filter = {};
-
-        if (name) {
-            filter.name = { $regex: name, $options: 'i' };
-        }
-
-        if (category) {
-            filter.category = { $regex: category, $options: 'i' };
-        }
-
-        if (city) {
-            filter.address = { $regex: city, $options: 'i' };
-        }
-
-        if (typeof isActive !== 'undefined') {
-            filter.isActive = isActive === 'true';
-        }
+        if (name) filter.name = { $regex: name, $options: 'i' };
+        if (category) filter.category = { $regex: category, $options: 'i' };
+        if (city) filter.address = { $regex: city, $options: 'i' };
+        if (typeof isActive !== 'undefined') filter.isActive = isActive === 'true';
 
         const parsedPage = parseInt(page);
         const parsedLimit = parseInt(limit);
@@ -146,16 +115,10 @@ export const getRestaurantByIdAdmin = async (req, res) => {
         const restaurant = await Restaurant.findById(id);
 
         if (!restaurant) {
-            return res.status(404).json({
-                success: false,
-                message: 'Restaurante no encontrado'
-            });
+            return res.status(404).json({ success: false, message: 'Restaurante no encontrado' });
         }
 
-        return res.status(200).json({
-            success: true,
-            data: restaurant
-        });
+        return res.status(200).json({ success: true, data: restaurant });
     } catch (error) {
         return res.status(500).json({
             success: false,
@@ -171,10 +134,7 @@ export const updateRestaurantAdmin = async (req, res) => {
         const currentRestaurant = await Restaurant.findById(id);
 
         if (!currentRestaurant) {
-            return res.status(404).json({
-                success: false,
-                message: 'Restaurante no encontrado'
-            });
+            return res.status(404).json({ success: false, message: 'Restaurante no encontrado' });
         }
 
         const updateData = { ...req.body };
@@ -183,7 +143,6 @@ export const updateRestaurantAdmin = async (req, res) => {
             if (currentRestaurant.photo_public_id) {
                 await cloudinary.uploader.destroy(currentRestaurant.photo_public_id);
             }
-
             updateData.photo = req.file.path;
             updateData.photo_public_id = req.file.filename;
         }
@@ -210,13 +169,10 @@ export const updateRestaurantAdmin = async (req, res) => {
 export const deactivateRestaurantAdmin = async (req, res) => {
     try {
         const { id } = req.params;
-
         const restaurant = await Restaurant.findById(id);
+
         if (!restaurant) {
-            return res.status(404).json({
-                success: false,
-                message: 'Restaurante no encontrado'
-            });
+            return res.status(404).json({ success: false, message: 'Restaurante no encontrado' });
         }
 
         if (!restaurant.isActive) {
@@ -245,87 +201,35 @@ export const deactivateRestaurantAdmin = async (req, res) => {
 };
 
 export const getRestaurants = async (req, res) => {
-
     try {
-<<<<<<< Updated upstream
         const {
-            page = 1,
-            limit = 10,
-            isActive,
-            name,
-            category,
-            city,
-            averagePrice,
-            minAveragePrice,
-            maxAveragePrice
+            page = 1, limit = 10, isActive, name,
+            category, city, averagePrice,
+            minAveragePrice, maxAveragePrice
         } = req.query;
-=======
-        const { page = 1, limit = 12, sort, adminId } = req.query;
-
-        // RESTAURANT_ADMIN: ver solo sus restaurantes
-        if (req.user?.role === 'RESTAURANT_ADMIN') {
-            const myRestaurants = await Restaurant.find({ adminId: req.user.id, active: true });
-            ok(res, myRestaurants, null, 200);
-            return;
-        }
-
-        // CUSTOMER y otros roles: ver restaurantes activos (listado publico).
-        // PLATFORM_ADMIN: puede ver todos y filtrar por adminId.
-        const filter = buildFilter(req.query);
-        if (req.user?.role === 'PLATFORM_ADMIN' && adminId) {
-            filter.adminId = adminId;
-        }
-
-        if (req.user?.role !== 'PLATFORM_ADMIN') {
-            filter.active = true;
-        }
-
-        const sortOption = buildSort(sort);
->>>>>>> Stashed changes
 
         const filter = {};
 
-        if (typeof isActive !== 'undefined') {
-            filter.isActive = isActive === 'true';
-        }
-
-        if (name) {
-            filter.name = { $regex: name, $options: 'i' };
-        }
-
-        if (category) {
-            filter.category = { $regex: category, $options: 'i' };
-        }
-
-        if (city) {
-            // Actualmente la ciudad forma parte de la dirección.
-            filter.address = { $regex: city, $options: 'i' };
-        }
+        if (typeof isActive !== 'undefined') filter.isActive = isActive === 'true';
+        if (name) filter.name = { $regex: name, $options: 'i' };
+        if (category) filter.category = { $regex: category, $options: 'i' };
+        if (city) filter.address = { $regex: city, $options: 'i' };
 
         if (averagePrice) {
             filter.averagePrice = Number(averagePrice);
         } else if (minAveragePrice || maxAveragePrice) {
             filter.averagePrice = {};
-
-            if (minAveragePrice) {
-                filter.averagePrice.$gte = Number(minAveragePrice);
-            }
-
-            if (maxAveragePrice) {
-                filter.averagePrice.$lte = Number(maxAveragePrice);
-            }
+            if (minAveragePrice) filter.averagePrice.$gte = Number(minAveragePrice);
+            if (maxAveragePrice) filter.averagePrice.$lte = Number(maxAveragePrice);
         }
 
-        const options = {
-            page: parseInt(page),
-            limit: parseInt(limit),
-            sort: { createdAt: -1 }
-        }
+        const parsedPage = Number(page) > 0 ? Number(page) : 1;
+        const parsedLimit = Number(limit) > 0 ? Number(limit) : 10;
 
         const restaurants = await Restaurant.find(filter)
-            .limit(options.limit)
-            .skip((options.page - 1) * options.limit)
-            .sort(options.sort);
+            .limit(parsedLimit)
+            .skip((parsedPage - 1) * parsedLimit)
+            .sort({ createdAt: -1 });
 
         const total = await Restaurant.countDocuments(filter);
 
@@ -333,33 +237,26 @@ export const getRestaurants = async (req, res) => {
             success: true,
             data: restaurants,
             pagination: {
-                currentPage: options.page,
-                totalPages: Math.ceil(total / options.limit),
+                currentPage: parsedPage,
+                totalPages: Math.ceil(total / parsedLimit),
                 totalRecords: total,
-                limit: options.limit
+                limit: parsedLimit
             }
-        })
+        });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al obtener los restaurantes',
-            error: error.message
-        })
+        handleError(res, error, 'Error al obtener restaurantes');
     }
-
-}
+};
 
 const parsePagination = (body = {}) => {
     const page = Number(body.page) > 0 ? Number(body.page) : 1;
     const limit = Number(body.limit) > 0 ? Number(body.limit) : 10;
-
     return { page, limit };
 };
 
 const parsePaginationQuery = (query = {}) => {
     const page = Number(query.page) > 0 ? Number(query.page) : 1;
     const limit = Number(query.limit) > 0 ? Number(query.limit) : 10;
-
     return { page, limit };
 };
 
@@ -387,22 +284,11 @@ export const searchRestaurantsByName = async (req, res) => {
     try {
         const { name, isActive } = req.body;
         const { page, limit } = parsePagination(req.body);
-
-        const filter = {
-            name: { $regex: name, $options: 'i' }
-        };
-
-        if (typeof isActive !== 'undefined') {
-            filter.isActive = isActive;
-        }
-
+        const filter = { name: { $regex: name, $options: 'i' } };
+        if (typeof isActive !== 'undefined') filter.isActive = isActive;
         return await sendSearchResponse(res, filter, page, limit);
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: 'Error al buscar restaurantes por nombre',
-            error: error.message
-        });
+        return res.status(500).json({ success: false, message: 'Error al buscar restaurantes por nombre', error: error.message });
     }
 };
 
@@ -410,22 +296,11 @@ export const searchRestaurantsByCategory = async (req, res) => {
     try {
         const { category, isActive } = req.body;
         const { page, limit } = parsePagination(req.body);
-
-        const filter = {
-            category: { $regex: category, $options: 'i' }
-        };
-
-        if (typeof isActive !== 'undefined') {
-            filter.isActive = isActive;
-        }
-
+        const filter = { category: { $regex: category, $options: 'i' } };
+        if (typeof isActive !== 'undefined') filter.isActive = isActive;
         return await sendSearchResponse(res, filter, page, limit);
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: 'Error al buscar restaurantes por categoría',
-            error: error.message
-        });
+        return res.status(500).json({ success: false, message: 'Error al buscar restaurantes por categoría', error: error.message });
     }
 };
 
@@ -433,23 +308,11 @@ export const searchRestaurantsByCity = async (req, res) => {
     try {
         const { city, isActive } = req.body;
         const { page, limit } = parsePagination(req.body);
-
-        const filter = {
-            // Actualmente la ciudad forma parte de la dirección.
-            address: { $regex: city, $options: 'i' }
-        };
-
-        if (typeof isActive !== 'undefined') {
-            filter.isActive = isActive;
-        }
-
+        const filter = { address: { $regex: city, $options: 'i' } };
+        if (typeof isActive !== 'undefined') filter.isActive = isActive;
         return await sendSearchResponse(res, filter, page, limit);
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: 'Error al buscar restaurantes por ciudad',
-            error: error.message
-        });
+        return res.status(500).json({ success: false, message: 'Error al buscar restaurantes por ciudad', error: error.message });
     }
 };
 
@@ -457,34 +320,20 @@ export const searchRestaurantsByAveragePrice = async (req, res) => {
     try {
         const { averagePrice, minAveragePrice, maxAveragePrice, isActive } = req.body;
         const { page, limit } = parsePagination(req.body);
-
         const filter = {};
 
         if (typeof averagePrice !== 'undefined') {
             filter.averagePrice = Number(averagePrice);
         } else {
             filter.averagePrice = {};
-
-            if (typeof minAveragePrice !== 'undefined') {
-                filter.averagePrice.$gte = Number(minAveragePrice);
-            }
-
-            if (typeof maxAveragePrice !== 'undefined') {
-                filter.averagePrice.$lte = Number(maxAveragePrice);
-            }
+            if (typeof minAveragePrice !== 'undefined') filter.averagePrice.$gte = Number(minAveragePrice);
+            if (typeof maxAveragePrice !== 'undefined') filter.averagePrice.$lte = Number(maxAveragePrice);
         }
 
-        if (typeof isActive !== 'undefined') {
-            filter.isActive = isActive;
-        }
-
+        if (typeof isActive !== 'undefined') filter.isActive = isActive;
         return await sendSearchResponse(res, filter, page, limit);
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: 'Error al buscar restaurantes por precio promedio',
-            error: error.message
-        });
+        return res.status(500).json({ success: false, message: 'Error al buscar restaurantes por precio promedio', error: error.message });
     }
 };
 
@@ -492,19 +341,10 @@ export const searchClientRestaurantsByName = async (req, res) => {
     try {
         const { name } = req.query;
         const { page, limit } = parsePaginationQuery(req.query);
-
-        const filter = {
-            isActive: true,
-            name: { $regex: name, $options: 'i' }
-        };
-
+        const filter = { isActive: true, name: { $regex: name, $options: 'i' } };
         return await sendSearchResponse(res, filter, page, limit);
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: 'Error al buscar restaurantes por nombre para cliente',
-            error: error.message
-        });
+        return res.status(500).json({ success: false, message: 'Error al buscar restaurantes por nombre para cliente', error: error.message });
     }
 };
 
@@ -512,19 +352,10 @@ export const searchClientRestaurantsByCategory = async (req, res) => {
     try {
         const { category } = req.query;
         const { page, limit } = parsePaginationQuery(req.query);
-
-        const filter = {
-            isActive: true,
-            category: { $regex: category, $options: 'i' }
-        };
-
+        const filter = { isActive: true, category: { $regex: category, $options: 'i' } };
         return await sendSearchResponse(res, filter, page, limit);
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: 'Error al buscar restaurantes por categoría para cliente',
-            error: error.message
-        });
+        return res.status(500).json({ success: false, message: 'Error al buscar restaurantes por categoría para cliente', error: error.message });
     }
 };
 
@@ -532,19 +363,10 @@ export const searchClientRestaurantsByCity = async (req, res) => {
     try {
         const { city } = req.query;
         const { page, limit } = parsePaginationQuery(req.query);
-
-        const filter = {
-            isActive: true,
-            address: { $regex: city, $options: 'i' }
-        };
-
+        const filter = { isActive: true, address: { $regex: city, $options: 'i' } };
         return await sendSearchResponse(res, filter, page, limit);
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: 'Error al buscar restaurantes por ciudad para cliente',
-            error: error.message
-        });
+        return res.status(500).json({ success: false, message: 'Error al buscar restaurantes por ciudad para cliente', error: error.message });
     }
 };
 
@@ -552,66 +374,33 @@ export const searchClientRestaurantsByAveragePrice = async (req, res) => {
     try {
         const { averagePrice, minAveragePrice, maxAveragePrice } = req.query;
         const { page, limit } = parsePaginationQuery(req.query);
-
-        const filter = {
-            isActive: true
-        };
+        const filter = { isActive: true };
 
         if (typeof averagePrice !== 'undefined') {
             filter.averagePrice = Number(averagePrice);
         } else {
             filter.averagePrice = {};
-
-            if (typeof minAveragePrice !== 'undefined') {
-                filter.averagePrice.$gte = Number(minAveragePrice);
-            }
-
-            if (typeof maxAveragePrice !== 'undefined') {
-                filter.averagePrice.$lte = Number(maxAveragePrice);
-            }
+            if (typeof minAveragePrice !== 'undefined') filter.averagePrice.$gte = Number(minAveragePrice);
+            if (typeof maxAveragePrice !== 'undefined') filter.averagePrice.$lte = Number(maxAveragePrice);
         }
 
         return await sendSearchResponse(res, filter, page, limit);
     } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: 'Error al buscar restaurantes por precio promedio para cliente',
-            error: error.message
-        });
+        return res.status(500).json({ success: false, message: 'Error al buscar restaurantes por precio promedio para cliente', error: error.message });
     }
 };
 
 export const getRestaurantById = async (req, res) => {
     try {
-        const { id } = req.params;
-
-        const restaurant = await Restaurant.findById(id);
-
-        if (!restaurant) {
-            return res.status(404).json({
-                success: false,
-                message: 'Restaurante no encontrado',
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            data: restaurant,
-        });
+        const record = await findOrFail(req.params.id);
+        ok(res, record);
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al obtener el restaurante',
-            error: error.message,
-        });
+        handleError(res, error, 'Error al obtener restaurante');
     }
 };
 
 export const updateRestaurant = async (req, res) => {
     try {
-<<<<<<< Updated upstream
-        const { id } = req.params;
-=======
         const data = normalizeAdminIds(req.body);
         data.tags = normalizeTags(data.tags);
 
@@ -619,34 +408,28 @@ export const updateRestaurant = async (req, res) => {
             data.photo = normalizePhoto(req.file);
         }
 
-        const record = await Restaurant.findByIdAndUpdate(req.params.id, data, { new: true, runValidators: true });
+        const record = await Restaurant.findByIdAndUpdate(
+            req.params.id, data, { new: true, runValidators: true }
+        );
         if (!record) throw Object.assign(new Error('Restaurante no encontrado'), { statusCode: 404 });
         ok(res, record, 'Restaurante actualizado exitosamente');
     } catch (error) {
         handleError(res, error, 'Error al actualizar restaurante', 400);
     }
 };
->>>>>>> Stashed changes
 
-        const currentRestaurant = await Restaurant.findById(id);
-        if (!currentRestaurant) {
-            return res.status(404).json({
-                success: false,
-                message: "Restaurante no encontrado",
-            });
-        }
+export const deleteRestaurant = async (req, res) => {
+    try {
+        const record = await Restaurant.findByIdAndUpdate(
+            req.params.id, { active: false }, { new: true }
+        );
+        if (!record) throw Object.assign(new Error('Restaurante no encontrado'), { statusCode: 404 });
+        ok(res, record, 'Restaurante eliminado exitosamente');
+    } catch (error) {
+        handleError(res, error, 'Error al eliminar restaurante');
+    }
+};
 
-<<<<<<< Updated upstream
-        const updateData = { ...req.body };
-
-        if (req.file) {
-            if (currentRestaurant.photo_public_id) {
-                await cloudinary.uploader.destroy(currentRestaurant.photo_public_id);
-            }
-
-            updateData.photo = req.file.path;
-            updateData.photo_public_id = req.file.filename;
-=======
 export const uploadCover = async (req, res) => {
     try {
         const data = normalizeAdminIds(req.body);
@@ -654,60 +437,54 @@ export const uploadCover = async (req, res) => {
 
         if (req.file) {
             data.photo = normalizePhoto(req.file);
->>>>>>> Stashed changes
         }
 
-        const updatedRestaurant = await Restaurant.findByIdAndUpdate(id, updateData, {
-            new: true,
-            runValidators: true,
-        });
-
-        res.status(200).json({
-            success: true,
-            message: "Restaurante actualizado exitosamente",
-            data: updatedRestaurant,
-        });
+        const record = await Restaurant.findByIdAndUpdate(
+            req.params.id,
+            { photo: data.photo },
+            { new: true }
+        );
+        if (!record) throw Object.assign(new Error('Restaurante no encontrado'), { statusCode: 404 });
+        ok(res, record, 'Foto actualizada exitosamente');
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "Error al actualizar restaurante",
-            error: error.message,
-        });
+        handleError(res, error, 'Error al actualizar foto', 400);
     }
 };
 
-export const changeRestaurantStatus = async (req, res) => {
+export const addPhoto = async (req, res) => {
     try {
-        const { id } = req.params;
-        const isActive = req.url.includes('/activate');
-        const action = isActive ? 'activado' : 'desactivado';
+        const record = await findOrFail(req.params.id);
+        if (record.photos.length >= 8) throw Object.assign(new Error('Máximo 8 fotos permitidas'), { statusCode: 400 });
+        record.photos.push({ url: req.file.secure_url, publicId: req.file.public_id });
+        await record.save();
+        ok(res, record, 'Foto agregada exitosamente', 201);
+    } catch (error) {
+        handleError(res, error, 'Error al agregar foto', 400);
+    }
+};
 
-        const restaurant = await Restaurant.findByIdAndUpdate(
-            id,
-            { isActive },
+export const deletePhoto = async (req, res) => {
+    try {
+        const record = await Restaurant.findByIdAndUpdate(
+            req.params.id,
+            { $pull: { photos: { _id: req.params.photoId } } },
             { new: true }
         );
-
-        if (!restaurant) {
-            return res.status(404).json({
-                success: false,
-                message: 'Restaurante no encontrado',
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            message: `Restaurante ${action} exitosamente`,
-            data: restaurant,
-
-        });
+        if (!record) throw Object.assign(new Error('Restaurante no encontrado'), { statusCode: 404 });
+        ok(res, record, 'Foto eliminada exitosamente');
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al cambiar el estado del restaurante',
-            error: error.message,
-
-        });
+        handleError(res, error, 'Error al eliminar foto', 400);
     }
+};
 
+export const getTablesByRestaurant = async (req, res) => {
+    try {
+        const tables = await Table.find({
+            restaurantId: req.params.restaurantId,
+            active: true
+        });
+        res.status(200).send({ success: true, tables });
+    } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+    }
 };

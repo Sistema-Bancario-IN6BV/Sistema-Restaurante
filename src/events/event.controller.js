@@ -1,186 +1,225 @@
-import Event from './event.model.js'
+'use strict';
+
+import Event from './event.model.js';
+import EventRegistration from './eventRegistration.model.js';
 import Restaurant from '../restaurants/restaurant.model.js';
+import { cloudinary } from '../../middlewares/file-uploader.js';
+import { extractToken } from '../../helpers/restaurant.helper.js';
 
 export const createEvent = async (req, res) => {
     try {
-
-        const eventData = req.body;
-
-        const restaurantExists = await Restaurant.findById(eventData.restaurant);
-
-        if (!restaurantExists) {
-            return res.status(404).json({
-                success: false,
-                message: 'Restaurante no existe'
-            });
+        if (new Date(req.body.date) < new Date()) {
+            return res.status(400).json({ success: false, message: 'La fecha debe ser futura' });
         }
-
-        if (req.file) {
-            eventData.photo = req.file.path;
+        
+        // Obtener adminId del usuario autenticado
+        const adminId = req.user?.id;
+        
+        // Si es admin de restaurante (no platform), asignar automáticamente su restaurante
+        if (adminId && req.user?.role !== 'PLATFORM_ADMIN') {
+            const myRestaurants = await Restaurant.find({ adminId, active: true }).select('_id');
+            if (myRestaurants.length === 0) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'No tienes restaurantes activos asignados' 
+                });
+            }
+            // Si no specify un restaurante, usar el primero
+            if (!req.body.restaurantId) {
+                req.body.restaurantId = myRestaurants[0]._id;
+            } else {
+                // Verificar que el restaurante especificado le pertenezca
+                const allowedIds = myRestaurants.map(r => r._id.toString());
+                if (!allowedIds.includes(req.body.restaurantId.toString())) {
+                    return res.status(403).json({ 
+                        success: false, 
+                        message: 'No tienes permisos para crear eventos en este restaurante' 
+                    });
+                }
+            }
         }
-
-        const event = new Event(eventData);
-        await event.save();
-
-        res.status(201).json({
-            success: true,
-            message: 'Evento creado exitosamente',
-            data: event
-        });
-
-    } catch (error) {
-        res.status(400).json({
-            success: false,
-            message: 'Error al crear el evento',
-            error: error.message
-        });
+        
+        const event = await Event.create(req.body);
+        res.status(201).json({ success: true, data: event });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
 };
 
 export const getEvents = async (req, res) => {
     try {
-
-        const { page = 1, limit = 10, isActive = 'true' } = req.query;
-
-        const options = {
-            page: parseInt(page),
-            limit: parseInt(limit),
-            sort: { createdAt: -1 }
+        const { restaurantId, from, to, page = 1, limit = 12 } = req.query;
+        
+        // obtener adminId del token
+        const adminId = req.user?.id || req.header('x-user-id');
+        
+        // construir filtro base
+        const filter = { active: true };
+        
+        // si es admin de restaurante (no platform), filtrar solo sus restaurantes
+        if (adminId && req.user?.role !== 'PLATFORM_ADMIN') {
+            const myRestaurants = await Restaurant.find({ adminId, active: true }).select('_id');
+            const myRestaurantIds = myRestaurants.map(r => r._id);
+            filter.restaurantId = { $in: myRestaurantIds };
+        } else if (restaurantId) {
+            filter.restaurantId = restaurantId;
         }
-        const pageNumber = parseInt(page, 10);
-        const limitNumber = parseInt(limit, 10);
-        const filter = { isActive: isActive === 'true' };
+        
+        // filtros adicionales
+        if (from || to) {
+            filter.date = {};
+            if (from) filter.date.$gte = new Date(from);
+            if (to) filter.date.$lte = new Date(to);
+        }
 
-        const events = await Event.find(filter)
-            .populate('restaurant')
-            .limit(limitNumber)
-            .skip((pageNumber - 1) * limitNumber)
-            .sort({ createdAt: -1 });
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const [events, total] = await Promise.all([
+            Event.find(filter).populate('restaurantId', 'name').sort({ date: 1 }).skip(skip).limit(parseInt(limit)),
+            Event.countDocuments(filter),
+        ]);
 
-        const total = await Event.countDocuments(filter);
-
-        res.status(200).json({
-            success: true,
-            data: events,
-            pagination: {
-                currentPage: pageNumber,
-                totalPages: Math.ceil(total / limitNumber),
-                totalRecords: total,
-                limit: limitNumber
-            }
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al obtener los eventos',
-            error: error.message
-        });
+        res.json({ success: true, data: events, pagination: { total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)) } });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
 };
 
 export const getEventById = async (req, res) => {
     try {
-
-        const { id } = req.params;
-
-        const event = await Event.findById(id)
-            .populate('restaurant');
-
-        if (!event) {
-            return res.status(404).json({
-                success: false,
-                message: 'Evento no encontrado'
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            data: event
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al obtener el evento',
-            error: error.message
-        });
+        const event = await Event.findById(req.params.id).populate('restaurantId', 'name');
+        if (!event) return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+        res.json({ success: true, data: event });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
 };
 
 export const updateEvent = async (req, res) => {
     try {
-
-        const { id } = req.params;
-
-        const currentEvent = await Event.findById(id);
-        if (!currentEvent) {
-            return res.status(404).json({
-                success: false,
-                message: 'Evento no encontrado'
-            });
+        const event = await Event.findById(req.params.id);
+        if (!event) return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+        if (event.status === 'CANCELLED') {
+            return res.status(400).json({ success: false, message: 'No se puede editar un evento cancelado' });
         }
-
-        const updateData = { ...req.body };
-
-        if (req.file) {
-            if (currentEvent.photo_public_id) {
-                await cloudinary.uploader.destroy(currentEvent.photo_public_id);
-            }
-            updateData.photo = req.file.path;
-            updateData.photo_public_id = req.file.filename;
-        }
-
-        const updatedEvent = await Event.findByIdAndUpdate(id,updateData,{
-                new: true,
-                runValidators: true
-        });
-
-        res.status(200).json({
-            success: true,
-            message: 'Evento actualizado exitosamente',
-            data: updatedEvent
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al actualizar evento',
-            error: error.message
-        });
+        Object.assign(event, req.body);
+        await event.save();
+        res.json({ success: true, message: 'Evento actualizado', data: event });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
 };
 
-export const changeEventStatus = async (req, res) => {
+export const cancelEvent = async (req, res) => {
     try {
-        const { id } = req.params;
-        const isActive = req.url.includes('/activate');
-        const action = isActive ? 'activado' : 'desactivado';
+        const event = await Event.findById(req.params.id);
+        if (!event) return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+        event.status = 'CANCELLED';
+        event.cancelReason = req.body.reason || '';
+        await event.save();
+        res.json({ success: true, message: 'Evento cancelado', data: event });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
 
-        const event = await Event.findByIdAndUpdate(
-            id, 
-            { isActive },
-            { new: true}
-        );
+export const uploadEventCover = async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ success: false, message: 'No se proporcionó imagen' });
+        const event = await Event.findById(req.params.id);
+        if (!event) return res.status(404).json({ success: false, message: 'Evento no encontrado' });
 
-        if (!event) {
-            return res.status(404).json({
-                success: false,
-                message: `Evento no encontrado`,
-            });
+        if (event.coverPublicId) {
+            await cloudinary.uploader.destroy(event.coverPublicId).catch(() => { });
+        } else if (event.coverImage) {
+            const parts = event.coverImage.split('/');
+            const publicId = parts.slice(-2).join('/').replace(/\.[^.]+$/, '');
+            await cloudinary.uploader.destroy(publicId).catch(() => { });
         }
 
-        res.status(200).json({
-            success: true,
-            message: `Evento ${action} exitosamente`,
-            data: event
-        })
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error al cambiar el estado del evento',
-            error: error.message,
-        });
-        
+        event.coverImage = req.file.path || req.file.secure_url;
+        event.coverPublicId = req.file.filename;
+        await event.save();
+        res.json({ success: true, message: 'Imagen actualizada', data: event });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
-}
+};
+
+export const registerToEvent = async (req, res) => {
+    try {
+        const event = await Event.findById(req.params.id);
+        if (!event) return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+        if (event.isFull) {
+            return res.status(400).json({ success: false, message: 'El evento está lleno' });
+        }
+
+        const registration = await EventRegistration.create({
+            eventId: event._id,
+            userId: req.user.id,
+        });
+
+        await Event.findByIdAndUpdate(event._id, { $inc: { registeredCount: 1 } });
+
+        res.status(201).json({ success: true, message: 'Inscripción exitosa', data: registration });
+    } catch (err) {
+        if (err.code === 11000) {
+            return res.status(409).json({ success: false, message: 'Ya estás inscrito en este evento' });
+        }
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+export const unregisterFromEvent = async (req, res) => {
+    try {
+        const event = await Event.findById(req.params.id);
+        if (!event) return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+
+        // Validar que falten más de 24h
+        const hoursUntil = (new Date(event.date) - new Date()) / (1000 * 60 * 60);
+        if (hoursUntil < 24) {
+            return res.status(400).json({ success: false, message: 'No se puede cancelar inscripción con menos de 24h de anticipación' });
+        }
+
+        const registration = await EventRegistration.findOneAndUpdate(
+            { eventId: req.params.id, userId: req.user.id, status: 'REGISTERED' },
+            { status: 'CANCELLED' },
+            { new: true }
+        );
+        if (!registration) {
+            return res.status(404).json({ success: false, message: 'No tienes inscripción activa' });
+        }
+
+        await Event.findByIdAndUpdate(event._id, { $inc: { registeredCount: -1 } });
+
+        res.json({ success: true, message: 'Inscripción cancelada' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+export const getEventRegistrations = async (req, res) => {
+    try {
+        const registrations = await EventRegistration.find({ eventId: req.params.id });
+        res.json({ success: true, data: registrations });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// Soft delete: marcar como no activo para que ya no aparezca en el frontend
+export const deleteEvent = async (req, res) => {
+    try {
+        const event = await Event.findById(req.params.id);
+        if (!event) {
+            return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+        }
+
+        event.active = false;
+        await event.save();
+
+        return res.json({ success: true, message: 'Evento eliminado', data: event });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: err.message });
+    }
+};
+

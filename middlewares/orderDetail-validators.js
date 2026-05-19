@@ -46,3 +46,4 @@ export const validateGetOrderDetails = [
         .withMessage('orderId debe ser un ObjectId válido de MongoDB'),
     checkValidators,
 ];
+
