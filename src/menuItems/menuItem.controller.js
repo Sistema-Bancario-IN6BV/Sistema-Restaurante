@@ -1,199 +1,285 @@
 'use strict';
 
 import MenuItem from './menuItem.model.js';
-import Restaurant from '../restaurants/restaurant.model.js';
+import Ingredient from '../ingredients/ingredient.model.js';
+import { cloudinary } from '../../middlewares/file-uploader.js';
 
 export const createMenuItem = async (req, res) => {
     try {
-        const data = req.body;
+        const data = { ...req.body, restaurantId: req.params.id };
 
-        const restaurantExists = await Restaurant.findOne({
-            _id: data.restaurant,
-            isActive: true
-        });
-
-        if (!restaurantExists) {
-            return res.status(400).json({
-                success: false,
-                message: 'El restaurante no existe o está inactivo'
-            });
+        if (typeof data.ingredients === 'string') {
+            try {
+                data.ingredients = JSON.parse(data.ingredients);
+            } catch (e) {
+            }
         }
 
-        if (req.file) {
-            data.photo = req.file.path;
+        if (Array.isArray(data.ingredients) && data.ingredients.length > 0 && typeof data.ingredients[0] === 'object') {
+            data.inventoryIngredients = data.ingredients;
+            delete data.ingredients;
         }
 
-        const newMenuItem = new MenuItem(data);
-        await newMenuItem.save();
+        const item = await MenuItem.create(data);
 
         res.status(201).json({
             success: true,
-            message: 'Platillo creado exitosamente',
-            data: newMenuItem
+            data: item
         });
-
-    } catch (error) {
-        res.status(400).json({
+    } catch (err) {
+        res.status(500).json({
             success: false,
-            message: 'Error al crear el platillo',
-            error: error.message
+            message: err.message
         });
     }
 };
 
-export const getAllMenuItem = async (req, res) => {
+export const getMenuByRestaurant = async (req, res) => {
     try {
-        const { page = 1, limit = 10, restaurant } = req.query;
-
-        const pageNumber = parseInt(page);
-        const limitNumber = parseInt(limit);
-
-        const filter = {isActive: true};
-
-        if (restaurant) {
-            filter.restaurant = restaurant;
-        }
-
-        const menuItems = await MenuItem.find(filter)
-            .limit(limitNumber)
-            .skip((pageNumber - 1) * limitNumber)
-            .sort({ createdAt: -1 })
-            .populate('restaurant', 'name');
-
-        const total = await MenuItem.countDocuments(filter);
-
-        res.status(200).json({
-            success: true,
-            message: 'Platillos obtenidos exitosamente',
-            total,
-            page: pageNumber,
-            pages: Math.ceil(total / limitNumber),
-            data: menuItems
+        const items = await MenuItem.find({
+            restaurantId: req.params.id,
+            active: true
+        })
+        .sort({
+            type: 1,
+            name: 1
         });
 
-    } catch (error) {
+        const grouped = items.reduce((acc, item) => {
+            if (!acc[item.type]) acc[item.type] = [];
+            acc[item.type].push(item);
+            return acc;
+        }, {});
+
+        res.json({
+            success: true,
+            data: grouped
+        });
+    } catch (err) {
         res.status(500).json({
             success: false,
-            message: 'Error al obtener los platillos',
-            error: error.message
+            message: err.message
         });
     }
 };
 
 export const getMenuItemById = async (req, res) => {
     try {
-        const { id } = req.params;
+        const item = await MenuItem.findById(req.params.itemId)
+            .populate('restaurantId', 'name');
 
-        const menuItem = await MenuItem.findById(id)
-            .populate('restaurant', 'name');
-
-        if (!menuItem) {
+        if (!item)
             return res.status(404).json({
                 success: false,
-                message: 'Platillo no encontrado'
+                message: 'Plato no encontrado'
             });
-        }
 
-        res.status(200).json({
+        res.json({
             success: true,
-            message: 'Platillo encontrado',
-            data: menuItem
+            data: item
         });
 
-    } catch (error) {
+    } catch (err) {
         res.status(500).json({
             success: false,
-            message: 'Error al obtener el platillo',
-            error: error.message
+            message: err.message
         });
     }
 };
 
 export const updateMenuItem = async (req, res) => {
     try {
-        const { id } = req.params;
+        const data = { ...req.body };
 
-        const currentMenuItem = await MenuItem.findById(id);
-
-        if (!currentMenuItem) {
-            return res.status(404).json({
-                success: false,
-                message: 'Platillo no encontrado'
-            });
-        }
-
-        const updateData = { ...req.body };
-
-        if (updateData.restaurant) {
-            const restaurantExists = await Restaurant.findOne({
-                _id: updateData.restaurant,
-                isActive: true
-            });
-
-            if (!restaurantExists) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'El restaurante no existe o está inactivo'
-                });
+        if (typeof data.ingredients === 'string') {
+            try {
+                data.ingredients = JSON.parse(data.ingredients);
+            } catch (e) {
             }
         }
 
-        if (req.file) {
-            updateData.photo = req.file.path;
+        if (Array.isArray(data.ingredients) && data.ingredients.length > 0 && typeof data.ingredients[0] === 'object') {
+            data.inventoryIngredients = data.ingredients;
+            delete data.ingredients;
         }
 
-        const updatedMenuItem = await MenuItem.findByIdAndUpdate(
-            id,
-            updateData,
+        const item = await MenuItem.findByIdAndUpdate(
+            req.params.itemId,
+            data,
             { new: true, runValidators: true }
         );
 
-        res.status(200).json({
+        if (!item)
+            return res.status(404).json({
+                success: false,
+                message: 'Plato no encontrado'
+            });
+
+        res.json({
             success: true,
-            message: 'Platillo actualizado exitosamente',
-            data: updatedMenuItem
+            message: 'Plato actualizado',
+            data: item
         });
 
-    } catch (error) {
+    } catch (err) {
         res.status(500).json({
             success: false,
-            message: 'Error al actualizar el platillo',
-            error: error.message
+            message: err.message
         });
     }
 };
 
-export const changeMenuItemStatus = async (req, res) => {
+export const toggleAvailability = async (req, res) => {
     try {
-        const { id } = req.params;
+        const item = await MenuItem.findById(req.params.itemId);
 
-        const isActive = req.url.includes('/activate');
-        const action = isActive ? 'activado' : 'desactivado';
-
-        const updatedMenuItem = await MenuItem.findByIdAndUpdate(
-            id,
-            { isActive },
-            { new: true }
-        );
-
-        if (!updatedMenuItem) {
+        if (!item)
             return res.status(404).json({
                 success: false,
-                message: 'Platillo no encontrado'
+                message: 'Plato no encontrado'
             });
-        }
 
-        res.status(200).json({
+        item.available = !item.available;
+        await item.save();
+
+        res.json({
             success: true,
-            message: `Platillo ${action} exitosamente`,
-            data: updatedMenuItem
+            message: `Disponibilidad: ${item.available}`,
+            data: item
         });
 
-    } catch (error) {
+    } catch (err) {
         res.status(500).json({
             success: false,
-            message: 'Error al cambiar el estado del platillo',
-            error: error.message
+            message: err.message
         });
+    }
+};
+
+export const deleteMenuItem = async (req, res) => {
+    try {
+        const item = await MenuItem.findById(req.params.itemId);
+        if (!item)
+            return res.status(404).json({
+                success: false,
+                message: 'Plato no encontrado'
+            });
+
+        if (item.image) {
+            const parts = item.image.split('/');
+            const publicId = parts.slice(-2).join('/').replace(/\.[^.]+$/, '');
+            await cloudinary.uploader.destroy(publicId).catch(() => { });
+        }
+
+        item.active = false;
+        await item.save();
+
+        res.json({
+            success: true,
+            message: 'Plato eliminado'
+        });
+
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: err.message
+        });
+    }
+};
+
+export const uploadMenuItemPhoto = async (req, res) => {
+    try {
+        if (!req.file)
+            return res.status(400).json({
+                success: false,
+                message: 'No se proporcionó imagen'
+            });
+
+        const item = await MenuItem.findById(req.params.itemId);
+
+        if (!item)
+            return res.status(404).json({
+                success: false,
+                message: 'Plato no encontrado'
+            });
+
+        if (item.image) {
+            const parts = item.image.split('/');
+            const publicId = parts.slice(-2).join('/').replace(/\.[^.]+$/, '');
+            await cloudinary.uploader.destroy(publicId).catch(() => { });
+        }
+
+        item.image = req.file.path || req.file.secure_url;
+        await item.save();
+
+        res.json({
+            success: true,
+            message: 'Foto actualizada',
+            data: item
+        });
+
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: err.message
+        });
+    }
+};
+
+export const linkIngredients = async (req, res) => {
+    try {
+        let { ingredients } = req.body;
+
+        if (typeof ingredients === 'string') {
+            try {
+                ingredients = JSON.parse(ingredients);
+            } catch (e) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Formato de ingredientes inválido (debe ser JSON)'
+                });
+            }
+        }
+
+        const item = await MenuItem.findByIdAndUpdate(
+            req.params.itemId,
+            { inventoryIngredients: ingredients },
+            { new: true, runValidators: true }
+        );
+
+        if (!item)
+            return res.status(404).json({
+                success: false,
+                message: 'Plato no encontrado'
+            });
+
+        res.json({
+            success: true,
+            message: 'Ingredientes vinculados',
+            data: item
+        });
+
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: err.message
+        });
+    }
+};
+
+export const discountInventory = async (orderItems) => {
+    for (const orderItem of orderItems) {
+        const menuItem = await MenuItem.findById(orderItem.menuItemId).lean();
+        if (!menuItem || !menuItem.inventoryIngredients) continue;
+
+        for (const inv of menuItem.inventoryIngredients) {
+            const totalDiscount = inv.quantity * orderItem.quantity;
+            const ingredient = await Ingredient.findById(inv.ingredientId);
+            if (!ingredient) continue;
+
+            ingredient.currentStock = Math.max(0, ingredient.currentStock - totalDiscount);
+            ingredient.lowStockAlert = ingredient.currentStock < ingredient.minStock;
+            await ingredient.save();
+        }
     }
 };

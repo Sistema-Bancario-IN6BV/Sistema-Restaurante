@@ -65,3 +65,83 @@ export const validateGetReservations = [
 
     checkValidators,
 ];
+
+export const validateGetMyReservations = [
+    validateJWT,
+    query('page')
+        .optional()
+        .isInt({ min: 1 })
+        .withMessage('La página debe ser un número mayor a 0'),
+
+    query('limit')
+        .optional()
+        .isInt({ min: 1 })
+        .withMessage('El límite debe ser un número mayor a 0'),
+
+    query('restaurant')
+        .optional()
+        .isMongoId()
+        .withMessage('El restaurante debe ser un ObjectId válido'),
+
+    query('reservationDate')
+        .optional()
+        .isISO8601()
+        .withMessage('La fecha debe ser una fecha válida'),
+
+    checkValidators,
+];
+
+export const validateGetReservationsByRestaurant = [
+    validateJWT,
+    requireRole(USER_ROLES.RESTAURANT_ADMIN),
+    param('id')
+        .isMongoId()
+        .withMessage('ID debe ser un ObjectId válido de MongoDB'),
+    checkValidators,
+];
+
+export const validateGetReservationById = [
+    validateJWT,
+    param('id')
+        .isMongoId()
+        .withMessage('ID debe ser un ObjectId válido de MongoDB'),
+    checkValidators,
+];
+
+export const validateUpdateReservation = [
+    validateJWT,
+    param('id')
+        .isMongoId()
+        .withMessage('ID debe ser un ObjectId válido de MongoDB'),
+    checkValidators,
+];
+
+export const validateCancelReservation = [
+    validateJWT,
+    requireRole(USER_ROLES.RESTAURANT_ADMIN),
+    param('id')
+        .isMongoId()
+        .withMessage('ID debe ser un ObjectId válido de MongoDB'),
+    checkValidators,
+];
+
+export const validateConfirmReservation = [
+    validateJWT,
+    requireRole(USER_ROLES.RESTAURANT_ADMIN),
+    param('id')
+        .isMongoId()
+        .withMessage('ID debe ser un ObjectId válido de MongoDB'),
+    checkValidators,
+];export const validateGetReservationsForAdmin = [
+    validateJWT,
+    requireRole(USER_ROLES.RESTAURANT_ADMIN, USER_ROLES.PLATFORM_ADMIN),
+    query('page')
+        .optional()
+        .isInt({ min: 1 })
+        .withMessage('La pagina debe ser un numero mayor a 0'),
+    query('limit')
+        .optional()
+        .isInt({ min: 1 })
+        .withMessage('El limite debe ser un numero mayor a 0'),
+    checkValidators,
+];
