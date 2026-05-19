@@ -1,13 +1,42 @@
 import Restaurant from './restaurant.model.js';
 import { cloudinary } from '../../middlewares/file-uploader.js'
 
+const normalizeTags = (tags) => {
+    if (Array.isArray(tags)) return tags.map((tag) => String(tag).trim()).filter(Boolean);
+    if (typeof tags !== 'string') return [];
+
+    const raw = tags.trim();
+    if (!raw) return [];
+
+    if (raw.startsWith('[')) {
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) return parsed.map((tag) => String(tag).trim()).filter(Boolean);
+        } catch {
+            // fall back to comma split
+        }
+    }
+
+    return raw.split(',').map((tag) => tag.trim()).filter(Boolean);
+};
+
+const normalizePhoto = (file) => file?.secure_url || file?.path || null;
+
 export const createRestaurant = async (req, res) => {
     try {
+<<<<<<< Updated upstream
 
         const restaurantData = req.body;
 
         if (req.file) {
             restaurantData.photo = req.file.path;
+=======
+        const data = normalizeAdminIds(req.body);
+        data.tags = normalizeTags(data.tags);
+
+        if (req.file) {
+            data.photo = normalizePhoto(req.file);
+>>>>>>> Stashed changes
         }
 
         const restaurant = new Restaurant(restaurantData);
@@ -218,6 +247,7 @@ export const deactivateRestaurantAdmin = async (req, res) => {
 export const getRestaurants = async (req, res) => {
 
     try {
+<<<<<<< Updated upstream
         const {
             page = 1,
             limit = 10,
@@ -229,6 +259,29 @@ export const getRestaurants = async (req, res) => {
             minAveragePrice,
             maxAveragePrice
         } = req.query;
+=======
+        const { page = 1, limit = 12, sort, adminId } = req.query;
+
+        // RESTAURANT_ADMIN: ver solo sus restaurantes
+        if (req.user?.role === 'RESTAURANT_ADMIN') {
+            const myRestaurants = await Restaurant.find({ adminId: req.user.id, active: true });
+            ok(res, myRestaurants, null, 200);
+            return;
+        }
+
+        // CUSTOMER y otros roles: ver restaurantes activos (listado publico).
+        // PLATFORM_ADMIN: puede ver todos y filtrar por adminId.
+        const filter = buildFilter(req.query);
+        if (req.user?.role === 'PLATFORM_ADMIN' && adminId) {
+            filter.adminId = adminId;
+        }
+
+        if (req.user?.role !== 'PLATFORM_ADMIN') {
+            filter.active = true;
+        }
+
+        const sortOption = buildSort(sort);
+>>>>>>> Stashed changes
 
         const filter = {};
 
@@ -556,7 +609,24 @@ export const getRestaurantById = async (req, res) => {
 
 export const updateRestaurant = async (req, res) => {
     try {
+<<<<<<< Updated upstream
         const { id } = req.params;
+=======
+        const data = normalizeAdminIds(req.body);
+        data.tags = normalizeTags(data.tags);
+
+        if (req.file) {
+            data.photo = normalizePhoto(req.file);
+        }
+
+        const record = await Restaurant.findByIdAndUpdate(req.params.id, data, { new: true, runValidators: true });
+        if (!record) throw Object.assign(new Error('Restaurante no encontrado'), { statusCode: 404 });
+        ok(res, record, 'Restaurante actualizado exitosamente');
+    } catch (error) {
+        handleError(res, error, 'Error al actualizar restaurante', 400);
+    }
+};
+>>>>>>> Stashed changes
 
         const currentRestaurant = await Restaurant.findById(id);
         if (!currentRestaurant) {
@@ -566,6 +636,7 @@ export const updateRestaurant = async (req, res) => {
             });
         }
 
+<<<<<<< Updated upstream
         const updateData = { ...req.body };
 
         if (req.file) {
@@ -575,6 +646,15 @@ export const updateRestaurant = async (req, res) => {
 
             updateData.photo = req.file.path;
             updateData.photo_public_id = req.file.filename;
+=======
+export const uploadCover = async (req, res) => {
+    try {
+        const data = normalizeAdminIds(req.body);
+        data.tags = normalizeTags(data.tags);
+
+        if (req.file) {
+            data.photo = normalizePhoto(req.file);
+>>>>>>> Stashed changes
         }
 
         const updatedRestaurant = await Restaurant.findByIdAndUpdate(id, updateData, {
