@@ -26,17 +26,27 @@ export const createInvoice = async (req, res) => {
 
     // Crear factura desde la orden
     const invoiceNumber = `INV-${Date.now()}-${orderId.substring(0, 6).toUpperCase()}`;
-    const taxRate = 0.12; // 12% tax
-    const subtotal = order.total;
+
+    // Usar el subtotal real de la orden (order.subtotal) y la tasa de impuestos de la orden
+    const taxRate = order.taxRate ?? 0.12;
+    const subtotal = Number(order.subtotal ?? 0);
     const taxAmount = Math.round(subtotal * taxRate * 100) / 100;
-    const total = subtotal + taxAmount;
+    const total = Math.round((subtotal + taxAmount) * 100) / 100;
+
+    // Mapear items para la factura (asegurar campos unitPrice y subtotal)
+    const invoiceItems = (order.items || []).map((it) => ({
+      name: it.name,
+      quantity: it.quantity,
+      unitPrice: it.unitPrice,
+      subtotal: (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0)
+    }));
 
     const invoice = await Invoice.create({
       invoiceNumber,
       orderId,
       userId: order.userId,
       restaurantId: order.restaurantId,
-      items: order.items,
+      items: invoiceItems,
       subtotal,
       taxRate,
       taxAmount,
@@ -63,7 +73,8 @@ export const getMyInvoices = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    const filter = { userId: req.user.id };
+    // Excluir facturas canceladas por defecto
+    const filter = { userId: req.user.id, status: { $ne: 'CANCELLED' } };
 
     const [invoices, total] = await Promise.all([
       Invoice.find(filter).populate('restaurantId', 'name').populate('orderId', 'type status')
@@ -136,6 +147,15 @@ export const payInvoice = async (req, res) => {
     const { paymentMethod } = req.body;
     const invoice = await Invoice.findById(req.params.id);
     if (!invoice) return res.status(404).json({ success: false, message: 'Factura no encontrada' });
+
+    // Temporary debug logs: mostrar ids para depuración de permisos
+    try {
+      console.log('[DEBUG deleteInvoice] invoiceId:', invoice._id?.toString());
+      console.log('[DEBUG deleteInvoice] invoice.userId:', invoice.userId, 'type:', typeof invoice.userId);
+      console.log('[DEBUG deleteInvoice] requester:', { id: req.user?.id, role: req.user?.role });
+    } catch (logErr) {
+      console.warn('[DEBUG deleteInvoice] Error al imprimir debug:', logErr.message);
+    }
     
     // Solo el dueño, restaurante admin, o platform admin pueden pagar
     if (invoice.userId !== req.user.id && req.user.role !== 'RESTAURANT_ADMIN' && req.user.role !== 'PLATFORM_ADMIN') {
@@ -163,8 +183,23 @@ export const deleteInvoice = async (req, res) => {
     const invoice = await Invoice.findById(req.params.id);
     if (!invoice) return res.status(404).json({ success: false, message: 'Factura no encontrada' });
 
-    // Ownership validation: only customer or admin can delete
-    if (invoice.userId !== req.user.id && req.user.role !== 'PLATFORM_ADMIN') {
+    // Ownership validation: allow if invoice.userId matches token OR the related order belongs to the user
+    let ownerMatch = String(invoice.userId) === String(req.user.id);
+    if (!ownerMatch && invoice.orderId) {
+      try {
+        const relatedOrder = await Order.findById(invoice.orderId).select('userId');
+        if (relatedOrder) {
+          console.log('[DEBUG deleteInvoice] relatedOrder.userId:', relatedOrder.userId);
+          if (String(relatedOrder.userId) === String(req.user.id)) {
+            ownerMatch = true;
+          }
+        }
+      } catch (e) {
+        // ignore and proceed to normal check
+      }
+    }
+
+    if (!ownerMatch && req.user.role !== 'PLATFORM_ADMIN') {
       return res.status(403).json({ success: false, message: 'No tienes permisos para eliminar esta factura' });
     }
 
