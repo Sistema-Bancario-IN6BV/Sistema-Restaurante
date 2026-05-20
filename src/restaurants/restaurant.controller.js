@@ -10,6 +10,25 @@ import { ok, fail } from '../../helpers/response.helper.js';
 const handleError = (res, error, message, defaultStatus = 500) =>
     fail(res, message, error.statusCode ?? defaultStatus, error.message);
 
+
+const normalizeTags = (tags) => {
+    if (Array.isArray(tags)) return tags.map((tag) => String(tag).trim()).filter(Boolean);
+    if (typeof tags !== 'string') return [];
+    const raw = tags.trim();
+    if (!raw) return [];
+    if (raw.startsWith('[')) {
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) return parsed.map((tag) => String(tag).trim()).filter(Boolean);
+        } catch {
+            // fall back to comma split
+        }
+    }
+    return raw.split(',').map((tag) => tag.trim()).filter(Boolean);
+};
+
+const normalizePhoto = (file) => file?.secure_url || file?.path || null;
+
 export const createRestaurant = async (req, res) => {
     try {
         const data = normalizeAdminIds(req.body);
