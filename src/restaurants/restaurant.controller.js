@@ -1,6 +1,5 @@
 "use strict";
 import Restaurant from './restaurant.model.js';
-import Table from '../tables/table.model.js';
 import {
     normalizeAdminIds, extractToken, validateAdminIds,
     findOrFail, buildFilter, buildSort
@@ -154,24 +153,5 @@ export const deletePhoto = async (req, res) => {
         ok(res, record, 'Foto eliminada exitosamente');
     } catch (error) {
         handleError(res, error, 'Error al eliminar foto', 400);
-    }
-};
-
-export const getTablesByRestaurant = async (req, res) => {
-    try {
-        const tables = await Table.find({
-            restaurantId: req.params.restaurantId,
-            active: true
-        });
-
-        res.status(200).send({
-            success: true,
-            tables
-        });
-    } catch (error) {
-        res.status(500).send({
-            success: false,
-            message: error.message
-        });
     }
 };
