@@ -14,7 +14,7 @@ export const createInvoice = async (req, res) => {
     if (!order) return res.status(404).json({ success: false, message: 'Orden no encontrada' });
 
     // Validar que el usuario es dueño de la orden o es admin
-    if (order.userId !== req.user.id && req.user.role !== 'PLATFORM_ADMIN' && req.user.role !== 'RESTAURANT_ADMIN') {
+    if (String(order.userId) !== String(req.user.id) && req.user.role !== 'PLATFORM_ADMIN' && req.user.role !== 'RESTAURANT_ADMIN') {
       return res.status(403).json({ success: false, message: 'No tienes permisos para crear facturas de esta orden' });
     }
 
@@ -24,23 +24,38 @@ export const createInvoice = async (req, res) => {
       return res.status(409).json({ success: false, message: 'Ya existe una factura para esta orden' });
     }
 
-    // Crear factura desde la orden
+    // Crear factura desde la orden — use los precios almacenados en la orden (unitPrice)
     const invoiceNumber = `INV-${Date.now()}-${orderId.substring(0, 6).toUpperCase()}`;
-    const taxRate = 0.12; // 12% tax
-    const subtotal = order.total;
-    const taxAmount = Math.round(subtotal * taxRate * 100) / 100;
-    const total = subtotal + taxAmount;
+    const taxRate = order.taxRate !== undefined ? order.taxRate : 0.12;
+
+    // Ensure items use unitPrice and subtotal from order.items
+    const items = (order.items || []).map((it) => {
+      const unit = Number(it.unitPrice ?? it.price ?? 0);
+      const qty = Number(it.quantity || 1);
+      const subtotalItem = Math.round(unit * qty * 100) / 100;
+      return {
+        name: it.name,
+        quantity: qty,
+        unitPrice: unit,
+        subtotal: subtotalItem,
+      };
+    });
+
+    const subtotal = Math.round((items.reduce((s, it) => s + (Number(it.subtotal) || 0), 0)) * 100) / 100;
+    const taxAmount = order.taxAmount !== undefined ? Number(order.taxAmount) : Math.round(subtotal * taxRate * 100) / 100;
+    const total = order.total !== undefined ? Number(order.total) : Math.round((subtotal + taxAmount) * 100) / 100;
 
     const invoice = await Invoice.create({
       invoiceNumber,
       orderId,
       userId: order.userId,
       restaurantId: order.restaurantId,
-      items: order.items,
+      items,
       subtotal,
       taxRate,
       taxAmount,
       total,
+      paymentMethod: order.paymentMethod,
       status: 'PENDING',
     });
 
@@ -63,7 +78,8 @@ export const getMyInvoices = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    const filter = { userId: req.user.id };
+    // Exclude CANCELLED invoices from user's list
+    const filter = { userId: req.user.id, status: { $ne: 'CANCELLED' } };
 
     const [invoices, total] = await Promise.all([
       Invoice.find(filter).populate('restaurantId', 'name').populate('orderId', 'type status')
@@ -138,7 +154,7 @@ export const payInvoice = async (req, res) => {
     if (!invoice) return res.status(404).json({ success: false, message: 'Factura no encontrada' });
     
     // Solo el dueño, restaurante admin, o platform admin pueden pagar
-    if (invoice.userId !== req.user.id && req.user.role !== 'RESTAURANT_ADMIN' && req.user.role !== 'PLATFORM_ADMIN') {
+    if (String(invoice.userId) !== String(req.user.id) && req.user.role !== 'RESTAURANT_ADMIN' && req.user.role !== 'PLATFORM_ADMIN') {
       return res.status(403).json({ success: false, message: 'No tienes permisos para pagar esta factura' });
     }
     
@@ -164,7 +180,10 @@ export const deleteInvoice = async (req, res) => {
     if (!invoice) return res.status(404).json({ success: false, message: 'Factura no encontrada' });
 
     // Ownership validation: only customer or admin can delete
-    if (invoice.userId !== req.user.id && req.user.role !== 'PLATFORM_ADMIN') {
+    const isOwner = String(invoice.userId) === String(req.user.id);
+    const isPlatformAdmin = req.user.role === 'PLATFORM_ADMIN';
+
+    if (!isOwner && !isPlatformAdmin) {
       return res.status(403).json({ success: false, message: 'No tienes permisos para eliminar esta factura' });
     }
 
@@ -173,11 +192,17 @@ export const deleteInvoice = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No se pueden eliminar facturas pagadas' });
     }
 
-    // Soft delete: mark as CANCELLED
+    // If owner requests deletion, perform hard delete so it disappears permanently
+    if (isOwner) {
+      await Invoice.deleteOne({ _id: invoice._id });
+      return res.json({ success: true, message: 'Factura eliminada permanentemente' });
+    }
+
+    // Platform admins: keep soft-delete behavior by marking as CANCELLED
     invoice.status = 'CANCELLED';
     await invoice.save();
 
-    res.json({ success: true, message: 'Factura eliminada', data: invoice });
+    res.json({ success: true, message: 'Factura eliminada (marcada como CANCELLED)', data: invoice });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

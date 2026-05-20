@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { uploadMenuItemImage } from '../../middlewares/file-uploader.js';
-import { createMenuItem, getMenuByRestaurant, getMenuItemById, updateMenuItem, toggleAvailability, 
+import { createMenuItem, getMenuByRestaurant, getRandomMenuByRestaurant, getMenuItemById, updateMenuItem, toggleAvailability, 
     deleteMenuItem, uploadMenuItemPhoto, linkIngredients, } from './menuItem.controller.js';
 import { validateGetMenuItemById, validateUpdateMenuItemId, validateToggleAvailabilityId,
     validateDeleteMenuItemId, validateUploadMenuItemPhotoId, 
@@ -9,6 +9,7 @@ import { validateGetMenuItemById, validateUpdateMenuItemId, validateToggleAvaila
 const router = Router();
 
 router.post('/restaurants/:id/menu', createMenuItem);
+router.get('/restaurants/:id/menu/random', getRandomMenuByRestaurant);
 router.get('/restaurants/:id/menu', getMenuByRestaurant);
 router.get('/:itemId', validateGetMenuItemById, getMenuItemById);
 router.put('/:itemId', validateUpdateMenuItemId, updateMenuItem);
