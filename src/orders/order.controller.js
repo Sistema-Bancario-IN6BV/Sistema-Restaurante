@@ -72,12 +72,6 @@ export const createOrder = async (req, res) => {
       totalAmount += subtotal;
     }
 
-    // Calculate subtotal, taxes and total and persist on order so invoices use same values
-    const subtotal = Math.round(totalAmount * 100) / 100;
-    const taxRate = 0.12; // 12% tax
-    const taxAmount = Math.round(subtotal * taxRate * 100) / 100;
-    const total = Math.round((subtotal + taxAmount) * 100) / 100;
-
     const order = await Order.create({
       userId: req.user.id,
       restaurantId,
@@ -85,11 +79,6 @@ export const createOrder = async (req, res) => {
       tableId,
       deliveryAddress,
       items: populatedItems,
-      subtotal,
-      taxRate,
-      taxAmount,
-      total,
-      paymentMethod: req.body.paymentMethod || 'CARD',
       status: req.body.status || 'PENDING',
       statusHistory: [{ status: req.body.status || 'PENDING', changedBy: req.user.id }],
     });
@@ -221,25 +210,16 @@ export const updateOrderStatus = async (req, res) => {
       // Generación automática de factura (US-12 Paso 4 y US-13 Paso 3)
       try {
         const invoiceNumber = `FAC-${new Date().getFullYear()}-${Date.now().toString().slice(-5)}`;
-        // Create invoice using order's stored pricing (unitPrice/subtotal)
-        const items = (order.items || []).map(it => ({
-          name: it.name,
-          quantity: it.quantity,
-          unitPrice: Number(it.unitPrice ?? it.price ?? 0),
-          subtotal: Math.round((Number(it.subtotal ?? (it.unitPrice * it.quantity)) || 0) * 100) / 100,
-        }));
-        const subtotalInv = Math.round(items.reduce((s, it) => s + (Number(it.subtotal) || 0), 0) * 100) / 100;
         await Invoice.create({
           invoiceNumber,
           orderId: order._id,
           userId: order.userId,
           restaurantId: order.restaurantId,
-          items,
-          subtotal: subtotalInv,
+          items: order.items,
+          subtotal: order.subtotal,
           taxRate: order.taxRate,
           taxAmount: order.taxAmount,
           total: order.total,
-          paymentMethod: order.paymentMethod,
           status: 'PENDING'
         });
       } catch (err) {
