@@ -55,8 +55,7 @@ export const validatePayInvoice = [
 
 export const validateDeleteInvoice = [
   validateJWT,
-  requireRole('RESTAURANT_ADMIN', 'PLATFORM_ADMIN'),
+  // Allow controller to enforce ownership/admin rules. Do not require admin role here.
   param('id').isMongoId().withMessage('ID de factura inválido'),
-  checkEntityRestaurantPermission('Invoice', 'restaurantId', 'id'),
   checkValidators,
 ];

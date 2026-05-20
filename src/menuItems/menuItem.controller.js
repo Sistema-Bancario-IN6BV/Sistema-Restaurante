@@ -2,6 +2,7 @@
 
 import MenuItem from './menuItem.model.js';
 import Ingredient from '../ingredients/ingredient.model.js';
+import mongoose from 'mongoose';
 import { cloudinary } from '../../middlewares/file-uploader.js';
 
 const MENU_ITEM_TYPES = ['ENTRADA', 'PLATO_FUERTE', 'POSTRE', 'BEBIDA'];
@@ -210,6 +211,20 @@ export const getMenuByRestaurant = async (req, res) => {
             success: false,
             message: err.message
         });
+    }
+};
+
+export const getRandomMenuByRestaurant = async (req, res) => {
+    try {
+        const count = parseInt(req.query.count) || 6;
+        const items = await MenuItem.aggregate([
+            { $match: { restaurantId: new mongoose.Types.ObjectId(req.params.id), active: true, available: true } },
+            { $sample: { size: Math.max(1, Math.min(count, 100)) } }
+        ]);
+
+        res.json({ success: true, data: items });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
 };
 
