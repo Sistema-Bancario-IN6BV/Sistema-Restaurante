@@ -118,7 +118,7 @@ export const createReservation = async (req, res) => {
             time,
             guests,
             notes,
-            status: 'PENDING'
+            status: 'CONFIRMED'
         });
 
         await Table.findByIdAndUpdate(
