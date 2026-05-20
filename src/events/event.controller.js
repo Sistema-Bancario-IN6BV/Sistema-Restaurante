@@ -14,9 +14,9 @@ export const createEvent = async (req, res) => {
         
         // Obtener adminId del usuario autenticado
         const adminId = req.user?.id;
-
-        // Si es admin de restaurante (ROLE RESTAURANT_ADMIN), asignar automáticamente su restaurante
-        if (req.user?.role === 'RESTAURANT_ADMIN') {
+        
+        // Si es admin de restaurante (no platform), asignar automáticamente su restaurante
+        if (adminId && req.user?.role !== 'PLATFORM_ADMIN') {
             const myRestaurants = await Restaurant.find({ adminId, active: true }).select('_id');
             if (myRestaurants.length === 0) {
                 return res.status(400).json({ 
@@ -52,13 +52,12 @@ export const getEvents = async (req, res) => {
         
         // obtener adminId del token
         const adminId = req.user?.id || req.header('x-user-id');
-
+        
         // construir filtro base
         const filter = { active: true };
-
-        // Si el usuario es RESTAURANT_ADMIN, filtrar solo sus restaurantes.
-        // No aplicar este filtro a clientes (CUSTOMER) para que puedan ver eventos disponibles.
-        if (req.user?.role === 'RESTAURANT_ADMIN') {
+        
+        // si es admin de restaurante (no platform), filtrar solo sus restaurantes
+        if (adminId && req.user?.role !== 'PLATFORM_ADMIN') {
             const myRestaurants = await Restaurant.find({ adminId, active: true }).select('_id');
             const myRestaurantIds = myRestaurants.map(r => r._id);
             filter.restaurantId = { $in: myRestaurantIds };
