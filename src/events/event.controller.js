@@ -48,28 +48,39 @@ export const createEvent = async (req, res) => {
 
 export const getEvents = async (req, res) => {
     try {
-        const { restaurantId, from, to, page = 1, limit = 12 } = req.query;
-        
-        // obtener adminId del token
-        const adminId = req.user?.id || req.header('x-user-id');
+        const { restaurantId, from, to, date, q, page = 1, limit = 12 } = req.query;
         
         // construir filtro base
         const filter = { active: true };
-        
-        // si es admin de restaurante (no platform), filtrar solo sus restaurantes
-        if (adminId && req.user?.role !== 'PLATFORM_ADMIN') {
-            const myRestaurants = await Restaurant.find({ adminId, active: true }).select('_id');
+
+        // Si el usuario es RESTAURANT_ADMIN, limitar a sus restaurantes.
+        // Evitar tratar a los CUSTOMERS como administradores (antes se usaba cualquier userId).
+        if (req.user?.role === 'RESTAURANT_ADMIN') {
+            const myRestaurants = await Restaurant.find({ adminId: req.user.id, active: true }).select('_id');
             const myRestaurantIds = myRestaurants.map(r => r._id);
             filter.restaurantId = { $in: myRestaurantIds };
         } else if (restaurantId) {
             filter.restaurantId = restaurantId;
         }
         
-        // filtros adicionales
+        // filtros adicionales: rango o fecha única
         if (from || to) {
             filter.date = {};
             if (from) filter.date.$gte = new Date(from);
             if (to) filter.date.$lte = new Date(to);
+        } else if (date) {
+            // filtrar por una fecha específica (día completo)
+            const start = new Date(date);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(date);
+            end.setHours(23, 59, 59, 999);
+            filter.date = { $gte: start, $lte: end };
+        }
+
+        // búsqueda por texto en título/descripcion
+        if (q) {
+            const regex = new RegExp(q, 'i');
+            filter.$or = [{ title: regex }, { description: regex }];
         }
 
         const skip = (parseInt(page) - 1) * parseInt(limit);
