@@ -66,7 +66,6 @@ const orderSchema = mongoose.Schema(
     taxRate: { type: Number, default: 0.12 },
     taxAmount: { type: Number, default: 0, min: 0 },
     total: { type: Number, default: 0, min: 0 },
-    paymentMethod: { type: String, enum: ['CASH', 'CARD', 'TRANSFER', 'DIGITAL_WALLET'], default: 'CARD' },
     statusHistory: [statusHistorySchema],
     active: { type: Boolean, default: true },
   },
