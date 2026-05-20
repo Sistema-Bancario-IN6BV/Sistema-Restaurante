@@ -10,6 +10,7 @@ import { ok, fail } from '../../helpers/response.helper.js';
 const handleError = (res, error, message, defaultStatus = 500) =>
     fail(res, message, error.statusCode ?? defaultStatus, error.message);
 
+
 const normalizeTags = (tags) => {
     if (Array.isArray(tags)) return tags.map((tag) => String(tag).trim()).filter(Boolean);
     if (typeof tags !== 'string') return [];
