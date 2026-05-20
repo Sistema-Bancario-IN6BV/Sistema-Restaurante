@@ -19,6 +19,22 @@ export const createTable = async (req, res) => {
             });
         }
 
+        // Validación: evitar crear mesa si ya existe número igual en el restaurante
+        if (data.number != null) {
+            const existing = await Table.findOne({
+                restaurantId: restaurant._id,
+                number: data.number,
+                active: true
+            });
+
+            if (existing) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Ya existe una mesa con ese número en este restaurante'
+                });
+            }
+        }
+
         const newTable = new Table({
             ...data,
             restaurantId: restaurant._id

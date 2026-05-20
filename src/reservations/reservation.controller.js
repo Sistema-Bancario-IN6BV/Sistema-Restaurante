@@ -32,12 +32,8 @@ export const createReservation = async (req, res) => {
             });
         }
 
-        if (new Date(date) < new Date().setHours(0,0,0,0)) {
-            return res.status(400).json({
-                success: false,
-                message: 'La fecha debe ser futura'
-            });
-        }
+        // Nota: la validación exacta de fecha/hora se realiza después
+        // de construir el objeto `reservationDate` con la hora seleccionada.
 
         const table = await Table.findOne({
             _id: tableId,
@@ -75,6 +71,23 @@ export const createReservation = async (req, res) => {
             0,
             0
         );
+
+        // Validación: no permitir actualizar a fecha/hora pasada
+        if (reservationDate < new Date()) {
+            return res.status(400).json({
+                success: false,
+                message: 'La fecha y hora deben ser futuras'
+            });
+        }
+
+        // Validación: no permitir reservar en fecha/hora pasada
+        const now = new Date();
+        if (reservationDate < now) {
+            return res.status(400).json({
+                success: false,
+                message: 'La fecha y hora deben ser futuras'
+            });
+        }
 
         const sameDayStart = new Date(reservationDate);
         sameDayStart.setHours(0,0,0,0);
@@ -118,7 +131,7 @@ export const createReservation = async (req, res) => {
             time,
             guests,
             notes,
-            status: 'CONFIRMED'
+            status: 'PENDING'
         });
 
         await Table.findByIdAndUpdate(
