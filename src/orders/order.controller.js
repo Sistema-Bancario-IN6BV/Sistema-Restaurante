@@ -134,6 +134,8 @@ export const getOrdersByRestaurant = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [orders, total] = await Promise.all([
       Order.find(filter)
+        .populate('tableId', 'number')
+        .populate('restaurantId', 'name')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
@@ -239,7 +241,12 @@ export const cancelOrder = async (req, res) => {
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ success: false, message: 'Pedido no encontrado' });
 
-    if (order.userId !== req.user.id && req.user.role !== 'PLATFORM_ADMIN') {
+    // Allow cancellation by order owner, platform admin, or restaurant admin (middleware already checks restaurant permission)
+    const isOwner = order.userId && order.userId.toString() === (req.user && req.user.id);
+    const isPlatformAdmin = req.user && req.user.role === 'PLATFORM_ADMIN';
+    const isRestaurantAdmin = req.user && req.user.role === 'RESTAURANT_ADMIN';
+
+    if (!isOwner && !isPlatformAdmin && !isRestaurantAdmin) {
       return res.status(403).json({ success: false, message: 'No tienes permisos' });
     }
 
