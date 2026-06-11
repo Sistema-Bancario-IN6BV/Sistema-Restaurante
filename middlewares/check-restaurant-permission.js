@@ -96,6 +96,9 @@ export const checkEntityRestaurantPermission = (ModelOrName, restaurantIdField =
 };
 
 export const checkRestaurantPermission = (idParamName = 'id') => {
+    // Este middleware se usa en rutas tipo: /:id (donde :id es el ID del EVENTO)
+    // Por eso NO debe intentar leer directamente un restaurantId desde params.
+    // En su lugar valida contra el restaurantId del evento.
     return async (req, res, next) => {
         try {
             if (!req.user) {
@@ -108,12 +111,34 @@ export const checkRestaurantPermission = (idParamName = 'id') => {
             if (req.user.role === 'PLATFORM_ADMIN') {
                 return next();
             }
-            const restaurantId = req.params[idParamName] || req.body[idParamName];
+
+            const entityId = req.params[idParamName] || req.body[idParamName];
+
+            if (!entityId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'ID de la entidad es requerido'
+                });
+            }
+
+            // Lazy import para evitar dependencia circular
+            const { default: Event } = await import('../src/events/event.model.js');
+
+            const event = await Event.findById(entityId);
+
+            if (!event) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Evento no encontrado'
+                });
+            }
+
+            const restaurantId = event.restaurantId;
 
             if (!restaurantId) {
                 return res.status(400).json({
                     success: false,
-                    message: 'ID del restaurante es requerido'
+                    message: 'El restaurante no está asociado a este evento'
                 });
             }
 
@@ -122,7 +147,7 @@ export const checkRestaurantPermission = (idParamName = 'id') => {
             if (!restaurant) {
                 return res.status(404).json({
                     success: false,
-                    message: 'Restaurante no encontrado'
+                    message: 'Restaurante asociado no encontrado'
                 });
             }
 
@@ -132,17 +157,17 @@ export const checkRestaurantPermission = (idParamName = 'id') => {
                 if (!hasPermission) {
                     return res.status(403).json({
                         success: false,
-                        message: 'No tiene permisos para modificar este restaurante. Solo puede modificar su propio restaurante.'
+                        message: 'No tiene permisos para modificar este evento. Solo puede modificar eventos de su propio restaurante.'
                     });
                 }
+
                 return next();
             }
 
             res.status(403).json({
                 success: false,
-                message: 'Rol no autorizado para modificar restaurantes'
+                message: 'Rol no autorizado para modificar eventos'
             });
-
         } catch (error) {
             res.status(500).json({
                 success: false,
@@ -152,6 +177,7 @@ export const checkRestaurantPermission = (idParamName = 'id') => {
         }
     };
 };
+
 
 /**
  * Middleware para validar permisos al crear entidades

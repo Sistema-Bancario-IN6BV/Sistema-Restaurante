@@ -1,5 +1,6 @@
 'use strict';
 import { Router } from 'express';
+import { validateJWT } from '../../middlewares/validate-JWT.js';
 import {
     createRestaurant,
     getRestaurants,
@@ -8,7 +9,8 @@ import {
     deleteRestaurant,
     uploadCover,
     addPhoto,
-    deletePhoto
+    deletePhoto,
+    getTablesByRestaurant
 } from './restaurant.controller.js';
 import {
     validateCreate,
@@ -20,6 +22,9 @@ import { cleanUploaderFileOnFinish } from '../../middlewares/delete-file-on-erro
 import { checkRestaurantPermission } from '../../middlewares/check-restaurant-permission.js';
 const router = Router();
 
+// Middleware de autenticación para todas las rutas
+router.use(validateJWT);
+
 const upload = uploadRestaurantImage.single('image');
 const withImage = [upload, cleanUploaderFileOnFinish];
     
@@ -30,5 +35,6 @@ router.get('/:id', validateGetById, getRestaurantById);
 router.put('/:id', validateUpdate, checkRestaurantPermission('id'), updateRestaurant);
 router.delete('/:id', validateUpdate, checkRestaurantPermission('id'), deleteRestaurant);
 router.post('/:id/cover', withImage, validateUpdate, checkRestaurantPermission('id'), uploadCover);
+router.get("/restaurant/:restaurantId", getTablesByRestaurant);
 
 export default router;

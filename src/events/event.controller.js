@@ -2,13 +2,43 @@
 
 import Event from './event.model.js';
 import EventRegistration from './eventRegistration.model.js';
+import Restaurant from '../restaurants/restaurant.model.js';
 import { cloudinary } from '../../middlewares/file-uploader.js';
+import { extractToken } from '../../helpers/restaurant.helper.js';
 
 export const createEvent = async (req, res) => {
     try {
         if (new Date(req.body.date) < new Date()) {
             return res.status(400).json({ success: false, message: 'La fecha debe ser futura' });
         }
+        
+        // Obtener adminId del usuario autenticado
+        const adminId = req.user?.id;
+        
+        // Si es admin de restaurante (no platform), asignar automáticamente su restaurante
+        if (adminId && req.user?.role !== 'PLATFORM_ADMIN') {
+            const myRestaurants = await Restaurant.find({ adminId, active: true }).select('_id');
+            if (myRestaurants.length === 0) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: 'No tienes restaurantes activos asignados' 
+                });
+            }
+            // Si no specify un restaurante, usar el primero
+            if (!req.body.restaurantId) {
+                req.body.restaurantId = myRestaurants[0]._id;
+            } else {
+                // Verificar que el restaurante especificado le pertenezca
+                const allowedIds = myRestaurants.map(r => r._id.toString());
+                if (!allowedIds.includes(req.body.restaurantId.toString())) {
+                    return res.status(403).json({ 
+                        success: false, 
+                        message: 'No tienes permisos para crear eventos en este restaurante' 
+                    });
+                }
+            }
+        }
+        
         const event = await Event.create(req.body);
         res.status(201).json({ success: true, data: event });
     } catch (err) {
@@ -18,11 +48,40 @@ export const createEvent = async (req, res) => {
 
 export const getEvents = async (req, res) => {
     try {
-        const { restaurantId, from, to, page = 1, limit = 12 } = req.query;
-        const filter = { active: true, status: { $ne: 'CANCELLED' }, date: { $gte: new Date() } };
-        if (restaurantId) filter.restaurantId = restaurantId;
-        if (from) filter.date.$gte = new Date(from);
-        if (to) filter.date.$lte = new Date(to);
+        const { restaurantId, from, to, date, q, page = 1, limit = 12 } = req.query;
+        
+        // construir filtro base
+        const filter = { active: true };
+
+        // Si el usuario es RESTAURANT_ADMIN, limitar a sus restaurantes.
+        // Evitar tratar a los CUSTOMERS como administradores (antes se usaba cualquier userId).
+        if (req.user?.role === 'RESTAURANT_ADMIN') {
+            const myRestaurants = await Restaurant.find({ adminId: req.user.id, active: true }).select('_id');
+            const myRestaurantIds = myRestaurants.map(r => r._id);
+            filter.restaurantId = { $in: myRestaurantIds };
+        } else if (restaurantId) {
+            filter.restaurantId = restaurantId;
+        }
+        
+        // filtros adicionales: rango o fecha única
+        if (from || to) {
+            filter.date = {};
+            if (from) filter.date.$gte = new Date(from);
+            if (to) filter.date.$lte = new Date(to);
+        } else if (date) {
+            // filtrar por una fecha específica (día completo)
+            const start = new Date(date);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(date);
+            end.setHours(23, 59, 59, 999);
+            filter.date = { $gte: start, $lte: end };
+        }
+
+        // búsqueda por texto en título/descripcion
+        if (q) {
+            const regex = new RegExp(q, 'i');
+            filter.$or = [{ title: regex }, { description: regex }];
+        }
 
         const skip = (parseInt(page) - 1) * parseInt(limit);
         const [events, total] = await Promise.all([
@@ -157,3 +216,21 @@ export const getEventRegistrations = async (req, res) => {
         res.status(500).json({ success: false, message: err.message });
     }
 };
+
+// Soft delete: marcar como no activo para que ya no aparezca en el frontend
+export const deleteEvent = async (req, res) => {
+    try {
+        const event = await Event.findById(req.params.id);
+        if (!event) {
+            return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+        }
+
+        event.active = false;
+        await event.save();
+
+        return res.json({ success: true, message: 'Evento eliminado', data: event });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: err.message });
+    }
+};
+

@@ -5,18 +5,18 @@ import { validateCreateTable, validateTableActiveChange, validateUpdateTableRequ
 
 const router = Router();
 
-router.post( "/restaurants/:id", validateCreateTable, createTable );
+router.post("/", validateCreateTable, createTable);
 
-router.get( "/restaurants/:id", validateGetTables, getRestaurantTables );
+router.get("/", validateGetTables, getRestaurantTables);
 
-router.get( "/:id", validateGetTableById, getTableById);
+router.patch("/:id/status", validateChangeTableStatus, changeTableStatus);
 
-router.put( "/:id", validateUpdateTableRequest, updateTable );
+router.put("/activate/:id", validateTableActiveChange, changeTableActive);
 
-router.patch( "/:id/status", validateChangeTableStatus, changeTableStatus );
+router.put("/deactivate/:id", validateTableActiveChange, changeTableActive);
 
-router.put( '/activate/:id', validateTableActiveChange, changeTableActive );
+router.get("/:id", validateGetTableById, getTableById);
 
-router.put( '/deactivate/:id', validateTableActiveChange, changeTableActive );
+router.put("/:id", validateUpdateTableRequest, updateTable);
 
 export default router;
