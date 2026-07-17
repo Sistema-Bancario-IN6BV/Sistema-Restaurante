@@ -3,6 +3,7 @@
 import Invoice from './invoice.model.js';
 import Order from '../orders/order.model.js';
 import mongoose from 'mongoose';
+import PDFDocument from 'pdfkit';
 
 // POST /invoices (Crear factura desde una orden)
 export const createInvoice = async (req, res) => {
@@ -95,6 +96,84 @@ export const getInvoiceByOrder = async (req, res) => {
       .populate('restaurantId', 'name').populate('orderId', 'type status items');
     if (!invoice) return res.status(404).json({ success: false, message: 'Factura no encontrada' });
     res.json({ success: true, data: invoice });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// GET /invoices/order/:orderId/pdf
+export const getInvoicePDF = async (req, res) => {
+  try {
+    const invoice = await Invoice.findOne({ orderId: req.params.orderId })
+      .populate('restaurantId', 'name')
+      .populate('orderId', 'type status');
+    if (!invoice) return res.status(404).json({ success: false, message: 'Factura no encontrada' });
+
+    if (
+      invoice.userId !== req.user.id &&
+      req.user.role !== 'RESTAURANT_ADMIN' &&
+      req.user.role !== 'PLATFORM_ADMIN'
+    ) {
+      return res.status(403).json({ success: false, message: 'No tienes permisos para ver esta factura' });
+    }
+
+    const doc = new PDFDocument({ margin: 50 });
+    res.header('Content-Type', 'application/pdf');
+    res.header('Content-Disposition', `attachment; filename="factura-${invoice.invoiceNumber}.pdf"`);
+    doc.pipe(res);
+
+    // Encabezado
+    doc.rect(0, 0, doc.page.width, 100).fill('#2c3e50');
+    doc.fillColor('white').fontSize(22).text('Factura', 50, 30);
+    doc.fontSize(12).text(invoice.restaurantId?.name || 'Restaurante', 50, 60);
+    doc.fontSize(10).text(`No. ${invoice.invoiceNumber}`, doc.page.width - 200, 55, { align: 'right' });
+    doc.text(`Emitida: ${new Date(invoice.issuedAt).toLocaleDateString()}`, doc.page.width - 200, 70, { align: 'right' });
+
+    doc.fillColor('black');
+    let yPos = 130;
+
+    // Tabla de items
+    doc.fontSize(14).text('Detalle', 50, yPos);
+    yPos += 25;
+    doc.fontSize(10).fillColor('#7f8c8d');
+    doc.text('Artículo', 50, yPos);
+    doc.text('Cant.', 300, yPos, { width: 60, align: 'right' });
+    doc.text('Precio unit.', 370, yPos, { width: 80, align: 'right' });
+    doc.text('Subtotal', 460, yPos, { width: 90, align: 'right' });
+    yPos += 15;
+    doc.moveTo(50, yPos).lineTo(550, yPos).strokeColor('#bdc3c7').stroke();
+    yPos += 10;
+
+    doc.fillColor('black').fontSize(10);
+    for (const item of invoice.items) {
+      doc.text(item.name, 50, yPos, { width: 240 });
+      doc.text(String(item.quantity), 300, yPos, { width: 60, align: 'right' });
+      doc.text(`Q${item.unitPrice.toFixed(2)}`, 370, yPos, { width: 80, align: 'right' });
+      doc.text(`Q${item.subtotal.toFixed(2)}`, 460, yPos, { width: 90, align: 'right' });
+      yPos += 20;
+    }
+
+    yPos += 10;
+    doc.moveTo(50, yPos).lineTo(550, yPos).strokeColor('#bdc3c7').stroke();
+    yPos += 20;
+
+    // Totales
+    doc.fontSize(11);
+    doc.text('Subtotal:', 370, yPos, { width: 90, align: 'right' });
+    doc.text(`Q${invoice.subtotal.toFixed(2)}`, 460, yPos, { width: 90, align: 'right' });
+    yPos += 20;
+    doc.text(`Impuesto (${(invoice.taxRate * 100).toFixed(0)}%):`, 370, yPos, { width: 90, align: 'right' });
+    doc.text(`Q${invoice.taxAmount.toFixed(2)}`, 460, yPos, { width: 90, align: 'right' });
+    yPos += 25;
+    doc.fontSize(13).fillColor('#2c3e50');
+    doc.text('Total:', 370, yPos, { width: 90, align: 'right' });
+    doc.text(`Q${invoice.total.toFixed(2)}`, 460, yPos, { width: 90, align: 'right' });
+
+    yPos += 40;
+    doc.fontSize(10).fillColor('#7f8c8d');
+    doc.text(`Estado: ${invoice.status}`, 50, yPos);
+
+    doc.end();
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

@@ -32,6 +32,12 @@ export const validateOrderId = [
   checkValidators,
 ];
 
+export const validateInvoicePdf = [
+  validateJWT,
+  param('orderId').isMongoId().withMessage('ID de orden inválido'),
+  checkValidators,
+];
+
 export const validateGetByRestaurant = [
   validateJWT,
   requireRole('RESTAURANT_ADMIN', 'PLATFORM_ADMIN'),
