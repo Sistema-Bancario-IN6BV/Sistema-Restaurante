@@ -118,7 +118,7 @@ export const validateUpdateReservation = [
 
 export const validateCancelReservation = [
     validateJWT,
-    requireRole(USER_ROLES.RESTAURANT_ADMIN),
+    requireRole(USER_ROLES.CUSTOMER, USER_ROLES.RESTAURANT_ADMIN, USER_ROLES.PLATFORM_ADMIN),
     param('id')
         .isMongoId()
         .withMessage('ID debe ser un ObjectId válido de MongoDB'),

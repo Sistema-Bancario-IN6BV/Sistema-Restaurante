@@ -163,7 +163,7 @@ export const getMyReservations = async (req, res) => {
         const skip = (parseInt(page) - 1) * parseInt(limit);
         const [reservations, total] = await Promise.all([
             Reservation.find(filter)
-                .populate('restaurantId', 'name')
+                .populate('restaurantId', 'name photo category')
                 .populate('tableId', 'number capacity')
                 .sort({ date: -1 })
                 .skip(skip)
@@ -225,7 +225,7 @@ export const getReservationsByRestaurant = async (req, res) => {
 export const getReservationById = async (req, res) => {
     try {
         const reservation = await Reservation.findById(req.params.id)
-            .populate('restaurantId', 'name')
+            .populate('restaurantId', 'name photo category')
             .populate('tableId', 'number capacity');
 
         if (!reservation) 
@@ -261,6 +261,15 @@ export const updateReservation = async (req, res) => {
             return res.status(404).json({
                 success: false,
                 message: 'Reservación no encontrada'
+            });
+        }
+
+        const userId = req.user.id || req.user._id;
+
+        if (req.user.role === 'CUSTOMER' && reservation.userId != userId) {
+            return res.status(403).json({
+                success: false,
+                message: 'No tienes permisos'
             });
         }
 
