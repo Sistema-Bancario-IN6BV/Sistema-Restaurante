@@ -107,7 +107,7 @@ export const validateMenuItemStatusChange = [
 ];
 
 export const validateGetMenuItemById = [
-    param('id')
+    param('itemId')
         .isMongoId()
         .withMessage('ID debe ser un ObjectId válido de MongoDB'),
 
