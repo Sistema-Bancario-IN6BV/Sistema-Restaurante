@@ -106,8 +106,9 @@ export const getMyOrders = async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const [orders, total] = await Promise.all([
       Order.find(filter)
-        .populate('restaurantId', 'name')
+        .populate('restaurantId', 'name photo')
         .populate('tableId', 'number')
+        .populate('items.menuItemId', 'image')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
@@ -156,8 +157,9 @@ export const getOrdersByRestaurant = async (req, res) => {
 export const getOrderById = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
-      .populate('restaurantId', 'name')
-      .populate('tableId', 'number capacity');
+      .populate('restaurantId', 'name photo address category')
+      .populate('tableId', 'number capacity')
+      .populate('items.menuItemId', 'image');
     if (!order) return res.status(404).json({ success: false, message: 'Pedido no encontrado' });
 
     if (req.user.role !== 'PLATFORM_ADMIN' && req.user.role !== 'RESTAURANT_ADMIN' && order.userId !== req.user.id) {

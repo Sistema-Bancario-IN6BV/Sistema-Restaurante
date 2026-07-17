@@ -108,11 +108,13 @@ export const validateGetOrderById = [
 
 export const validateCancelOrder = [
 	validateJWT,
-	requireRole('RESTAURANT_ADMIN', 'PLATFORM_ADMIN'),
+	requireRole('CUSTOMER', 'RESTAURANT_ADMIN', 'PLATFORM_ADMIN'),
 	param('id')
 		.isMongoId()
 		.withMessage('ID debe ser un ObjectId válido de MongoDB'),
-	checkEntityRestaurantPermission('Order', 'restaurantId', 'id'),
+	// Los clientes solo pueden cancelar sus propios pedidos (lo valida el controlador);
+	// el chequeo de permisos por restaurante solo aplica a roles administrativos.
+	(req, res, next) => (req.user.role === 'CUSTOMER' ? next() : checkEntityRestaurantPermission('Order', 'restaurantId', 'id')(req, res, next)),
 	checkValidators,
 ];
 
