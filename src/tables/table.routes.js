@@ -1,13 +1,15 @@
 import { Router } from "express";
-import { createTable, getRestaurantTables, getTableById, updateTable, changeTableStatus, changeTableActive } from "./table.controller.js";
+import { createTable, getRestaurantTables, getTableById, updateTable, changeTableStatus, changeTableActive, getTablesByRestaurant } from "./table.controller.js";
 import { validateCreateTable, validateTableActiveChange, validateUpdateTableRequest, validateGetTableById,
-        validateChangeTableStatus, validateGetTables } from '../../middlewares/table-validators.js';
+        validateChangeTableStatus, validateGetTables, validateGetTablesByRestaurant } from '../../middlewares/table-validators.js';
 
 const router = Router();
 
 router.post("/", validateCreateTable, createTable);
 
 router.get("/", validateGetTables, getRestaurantTables);
+
+router.get("/restaurant/:restaurantId", validateGetTablesByRestaurant, getTablesByRestaurant);
 
 router.patch("/:id/status", validateChangeTableStatus, changeTableStatus);
 
