@@ -1,0 +1,18 @@
+node_modules
+npm-debug.log*
+pnpm-debug.log*
+
+.env
+.env.*
+!.env.example
+
+.git
+.gitignore
+
+logs
+*.log
+
+README.md
+LICENSE
+Postman_Reports_Collection.json
+Sistema Restaurante API.postman_collection.json
