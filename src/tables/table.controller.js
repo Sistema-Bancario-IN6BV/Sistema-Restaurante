@@ -109,6 +109,32 @@ export const getRestaurantTables = async (req, res) => {
     }
 };
 
+export const getTablesByRestaurant = async (req, res) => {
+    try {
+
+        const { restaurantId } = req.params;
+
+        const tables = await Table.find({
+            restaurantId,
+            active: true
+        }).select('number capacity location status');
+
+        res.status(200).json({
+            success: true,
+            total: tables.length,
+            tables
+        });
+
+    } catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener mesas',
+            error: error.message
+        });
+    }
+};
+
 export const getTableById = async (req, res) => {
     try {
 

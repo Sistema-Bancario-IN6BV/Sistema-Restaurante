@@ -5,6 +5,7 @@ import {
   createInvoice,
   getMyInvoices,
   getInvoiceByOrder,
+  getInvoicePDF,
   getInvoicesByRestaurant,
   payInvoice,
   deleteInvoice,
@@ -14,6 +15,7 @@ import {
   validateGetMyInvoices,
   validateInvoiceId,
   validateOrderId,
+  validateInvoicePdf,
   validateGetByRestaurant,
   validatePayInvoice,
   validateDeleteInvoice,
@@ -29,6 +31,9 @@ router.get('/my', validateGetMyInvoices, getMyInvoices);
 
 // GET /invoices/order/:orderId
 router.get('/order/:orderId', validateOrderId, getInvoiceByOrder);
+
+// GET /invoices/order/:orderId/pdf
+router.get('/order/:orderId/pdf', validateInvoicePdf, getInvoicePDF);
 
 // GET /invoices/restaurant/:id
 router.get('/restaurant/:id', validateGetByRestaurant, getInvoicesByRestaurant);
