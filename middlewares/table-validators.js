@@ -79,6 +79,14 @@ export const validateGetTableById = [
     checkValidators,
 ];
 
+export const validateGetTablesByRestaurant = [
+    validateJWT,
+    param('restaurantId')
+        .isMongoId()
+        .withMessage('ID debe ser un ObjectId válido de MongoDB'),
+    checkValidators,
+];
+
 export const validateGetTables = [
     validateJWT,
     requireRole(USER_ROLES.PLATFORM_ADMIN, USER_ROLES.RESTAURANT_ADMIN),

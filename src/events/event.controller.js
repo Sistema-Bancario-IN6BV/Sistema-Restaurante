@@ -62,7 +62,16 @@ export const getEvents = async (req, res) => {
         } else if (restaurantId) {
             filter.restaurantId = restaurantId;
         }
-        
+
+        // Los clientes solo deben ver eventos futuros (hoy en adelante) y no cancelados
+        const isCustomer = req.user?.role === 'CUSTOMER';
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        if (isCustomer) {
+            filter.date = { $gte: startOfToday };
+            filter.status = { $ne: 'CANCELLED' };
+        }
+
         // filtros adicionales: rango o fecha única
         if (from || to) {
             filter.date = {};
@@ -75,6 +84,15 @@ export const getEvents = async (req, res) => {
             const end = new Date(date);
             end.setHours(23, 59, 59, 999);
             filter.date = { $gte: start, $lte: end };
+        }
+
+        // Reforzar el piso para clientes: nunca mostrar fechas anteriores a hoy,
+        // aunque se pasen filtros from/to/date que apunten al pasado.
+        if (isCustomer) {
+            if (!filter.date) filter.date = {};
+            if (!filter.date.$gte || filter.date.$gte < startOfToday) {
+                filter.date.$gte = startOfToday;
+            }
         }
 
         // búsqueda por texto en título/descripcion
@@ -160,6 +178,19 @@ export const registerToEvent = async (req, res) => {
     try {
         const event = await Event.findById(req.params.id);
         if (!event) return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+
+        if (event.status === 'CANCELLED') {
+            return res.status(400).json({ success: false, message: 'El evento fue cancelado' });
+        }
+
+        // Calcular el fin real del evento (día + hora de fin) y rechazar si ya pasó
+        const eventEnd = new Date(event.date);
+        const [h, m] = (event.endTime || '23:59').split(':').map(Number);
+        eventEnd.setHours(h, m, 0, 0);
+        if (eventEnd < new Date()) {
+            return res.status(400).json({ success: false, message: 'El evento ya finalizó, no es posible inscribirse' });
+        }
+
         if (event.isFull) {
             return res.status(400).json({ success: false, message: 'El evento está lleno' });
         }

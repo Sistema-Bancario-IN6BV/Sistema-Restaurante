@@ -16,7 +16,6 @@ export const createIngredient = async (req, res) => {
                 message: 'Ya existe un ingrediente con ese nombre en este restaurante' 
             });
         }
-
         res.status(500).json({ 
             success: false, 
             message: err.message 
@@ -27,13 +26,13 @@ export const createIngredient = async (req, res) => {
 export const getIngredientsByRestaurant = async (req, res) => {
     try {
         const { lowStock } = req.query;
-        const filter = { restaurantId: req.params.id, active: true };
+        const filter = { restaurantId: req.params.restaurantId, active: true };
         if (lowStock === 'true') filter.lowStockAlert = true;
 
         const ingredients = await Ingredient.find(filter).sort({ name: 1 });
 
         const alertCount = await Ingredient.countDocuments({ 
-            restaurantId: req.params.id, 
+            restaurantId: req.params.restaurantId, 
             active: true, 
             lowStockAlert: true 
         });
@@ -54,7 +53,7 @@ export const getIngredientsByRestaurant = async (req, res) => {
 export const getAlerts = async (req, res) => {
     try {
         const ingredients = await Ingredient.find({
-            restaurantId: req.params.id, 
+            restaurantId: req.params.restaurantId, 
             active: true, 
             lowStockAlert: true
         }).sort({ currentStock: 1 });
@@ -119,7 +118,6 @@ export const updateIngredient = async (req, res) => {
 export const restockIngredient = async (req, res) => {
     try {
         const { quantity } = req.body;
-
         const ingredient = await Ingredient.findById(req.params.id);
 
         if (!ingredient) 
